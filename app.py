@@ -446,3 +446,34 @@ textarea {
 </style>
 """, unsafe_allow_html=True)
 
+
+# ==========================
+# 🚨 ULTIMATE SOC MODE
+# ==========================
+import random
+from datetime import datetime
+
+st.divider()
+st.subheader("🛰️ SOC LIVE STATUS")
+
+online = random.choice(["🟢 ONLINE", "🟡 MONITORANDO", "🔴 ALERTA"])
+threats = random.randint(0, 12)
+cpu = random.randint(15, 85)
+shield = random.randint(80, 99)
+
+c1, c2, c3, c4 = st.columns(4)
+
+c1.metric("⚡ STATUS", online)
+c2.metric("🚨 Ameaças hoje", threats)
+c3.metric("🧠 CPU SOC", f"{cpu}%")
+c4.metric("🛡️ Shield", f"{shield}%")
+
+st.progress(shield)
+
+st.caption(f"🕒 Última varredura: {datetime.now().strftime('%H:%M:%S')}")
+
+# radar fake visual
+st.markdown("### 📡 Radar SOC")
+radar = "🟢 " * random.randint(8,15)
+st.code(radar + "VARREDURA ATIVA")
+
