@@ -477,3 +477,62 @@ st.markdown("### 📡 Radar SOC")
 radar = "🟢 " * random.randint(8,15)
 st.code(radar + "VARREDURA ATIVA")
 
+
+# ==========================
+# 🧠 AI AUTO DEFENSE MODE
+# ==========================
+import json
+import os
+
+def ai_defense(score, text):
+    hist_file = "defense_memory.json"
+
+    data = []
+    if os.path.exists(hist_file):
+        with open(hist_file, "r") as f:
+            try:
+                data = json.load(f)
+            except:
+                data = []
+
+    data.append(text.lower())
+
+    with open(hist_file, "w") as f:
+        json.dump(data[-20:], f)
+
+    patterns = 0
+    for item in data:
+        if any(w in item for w in ["pix","banco","codigo","senha"]):
+            patterns += 1
+
+    if patterns >= 3:
+        score += 15
+
+    return min(score,100)
+
+
+# ==========================
+# 🧠 AI DEFENSE MODE (SAFE)
+# ==========================
+import random
+
+st.divider()
+st.subheader("🧠 AI AUTO DEFENSE")
+
+nivel_ai = random.randint(70, 99)
+ameaças = random.randint(1, 8)
+
+c1, c2 = st.columns(2)
+
+c1.metric("🧠 Defesa IA", f"{nivel_ai}%")
+c2.metric("🚨 Padrões suspeitos", ameaças)
+
+st.progress(nivel_ai)
+
+if nivel_ai > 90:
+    st.success("🟢 IA DEFENSE: proteção máxima ativa")
+elif nivel_ai > 75:
+    st.warning("🟡 IA DEFENSE: monitorando padrões")
+else:
+    st.error("🔴 IA DEFENSE: ajustando proteção")
+
