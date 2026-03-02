@@ -253,7 +253,6 @@ st.write("• Texto: score de golpe + explicação + links suspeitos")
 st.write("• Print: upload (na próxima versão ativamos OCR automático)")
 st.write("• Vídeo: triagem leve para sinais de IA/edição (heurística)")
 st.caption("⚠️ Detecção de IA/deepfake é probabilística. Use como alerta, não como prova.")
-cat >> app.py << 'EOF'
 
 # ==========================
 # 🧠 IA VIVA (memória leve)
