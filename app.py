@@ -7,6 +7,23 @@ import cv2
 
 st.set_page_config(page_title="ESCUDO DIGITAL IA", layout="centered")
 
+st.markdown("""
+<style>
+html, body, [class*="css"]  {
+    color: #FFFFFF !important;
+}
+.stMarkdown, .stText, .stTextInput, .stTextArea {
+    color: #FFFFFF !important;
+}
+h1,h2,h3,h4,h5 {
+    color: #00FF9C !important;
+}
+small, span, p {
+    color: #E0E0E0 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ---------- UI/STYLE ----------
 st.markdown("""
 <style>
