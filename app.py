@@ -366,3 +366,38 @@ if video:
         else:
             st.write("• Nenhum padrão forte detectado.")
 
+
+# ==========================
+# 💀 CYBER MILITAR MODE
+# ==========================
+import random
+import time
+
+st.markdown("---")
+st.subheader("🛰️ CYBER SECURITY STATUS")
+
+col1, col2, col3 = st.columns(3)
+
+threat = random.randint(5, 95)
+shield = random.randint(60, 100)
+scan = random.randint(80, 100)
+
+col1.metric("🚨 Threat Level", f"{threat}%")
+col2.metric("🛡️ Shield Power", f"{shield}%")
+col3.metric("📡 Scan Integrity", f"{scan}%")
+
+st.progress(scan)
+
+if threat > 70:
+    st.error("🔴 ALERTA ALTO — atividade suspeita detectada")
+elif threat > 40:
+    st.warning("🟠 Monitoramento ativo — possíveis riscos")
+else:
+    st.success("🟢 Sistema estável — ambiente seguro")
+
+with st.expander("🧠 Log SOC"):
+    st.write("• Scanner ativo")
+    st.write("• Monitorando links suspeitos")
+    st.write("• IA heurística ligada")
+    st.write("• Defesa automática pronta")
+
