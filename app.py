@@ -536,3 +536,109 @@ elif nivel_ai > 75:
 else:
     st.error("🔴 IA DEFENSE: ajustando proteção")
 
+
+# ==========================
+# 🧠 MEMÓRIA REAL DE GOLPES
+# ==========================
+import json
+import os
+
+def salvar_golpe(texto):
+    arq = "golpes_memoria.json"
+
+    data = []
+    if os.path.exists(arq):
+        try:
+            with open(arq,"r",encoding="utf-8") as f:
+                data = json.load(f)
+        except:
+            data = []
+
+    data.insert(0, {"msg": texto})
+
+    with open(arq,"w",encoding="utf-8") as f:
+        json.dump(data[:20], f, ensure_ascii=False)
+
+def mostrar_memoria():
+    arq = "golpes_memoria.json"
+
+    if os.path.exists(arq):
+        with open(arq,"r",encoding="utf-8") as f:
+            data = json.load(f)
+
+        st.subheader("📚 Últimos golpes detectados")
+        for i in data[:5]:
+            st.write("•", i["msg"][:80])
+
+
+
+# ==========================
+# 🧠 MEMÓRIA AUTOMÁTICA
+# ==========================
+import json, os
+
+def salvar_golpe(texto):
+    arq = "memoria.json"
+    data = []
+
+    if os.path.exists(arq):
+        try:
+            with open(arq,"r",encoding="utf-8") as f:
+                data = json.load(f)
+        except:
+            data = []
+
+    data.insert(0, texto)
+
+    with open(arq,"w",encoding="utf-8") as f:
+        json.dump(data[:20], f)
+
+
+# ==========================
+# 🧠 IA QUE APRENDE (SAFE MODE)
+# ==========================
+import json
+import os
+
+def ia_aprende(texto):
+    arquivo = "ia_memoria.json"
+
+    data = []
+
+    if os.path.exists(arquivo):
+        try:
+            with open(arquivo, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except:
+            data = []
+
+    data.insert(0, texto.lower())
+
+    with open(arquivo, "w", encoding="utf-8") as f:
+        json.dump(data[:30], f, ensure_ascii=False)
+
+def mostrar_ia_status():
+    arquivo = "ia_memoria.json"
+
+    st.subheader("🧠 IA Aprendizado")
+
+    if os.path.exists(arquivo):
+        with open(arquivo, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        suspeitos = 0
+        for t in data:
+            if any(w in t for w in ["pix","banco","senha","codigo","verificacao"]):
+                suspeitos += 1
+
+        st.write(f"📚 Mensagens aprendidas: {len(data)}")
+        st.write(f"🚨 Padrões suspeitos detectados: {suspeitos}")
+
+        if suspeitos >= 5:
+            st.warning("⚠️ IA detecta ataques repetidos")
+        else:
+            st.success("🟢 IA aprendendo normalmente")
+
+
+mostrar_ia_status()
+
