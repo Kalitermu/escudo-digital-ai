@@ -315,3 +315,54 @@ if vid:
     else:
         st.success("✅ Sem sinais fortes de IA")
 
+
+# ==========================
+# 🛰️ SOC ELITE - VIDEO ANALYZER
+# ==========================
+st.subheader("🛰️ SOC ELITE — Análise de Vídeo")
+
+video = st.file_uploader("🎞️ Envie um vídeo para triagem IA", type=["mp4","mov","avi"])
+
+if video:
+
+    st.video(video)
+
+    nome = video.name.lower()
+    tamanho = video.size
+
+    score = 20
+    motivos = []
+
+    # sinais comuns IA
+    if any(w in nome for w in ["ai","deepfake","faceswap","fake","render"]):
+        score += 35
+        motivos.append("Nome do arquivo contém termos ligados a IA.")
+
+    if tamanho < 800000:
+        score += 20
+        motivos.append("Arquivo pequeno demais para vídeo real.")
+
+    if tamanho > 50000000:
+        score += 10
+        motivos.append("Compressão ou renderização suspeita.")
+
+    score = max(0, min(100, score))
+
+    st.progress(score)
+
+    st.markdown("### 🧾 Resultado SOC")
+
+    if score >= 70:
+        st.error(f"🔴 POSSÍVEL IA ({score}/100)")
+    elif score >= 40:
+        st.warning(f"🟠 SUSPEITO ({score}/100)")
+    else:
+        st.success(f"🟢 SEM SINAIS FORTES ({score}/100)")
+
+    with st.expander("📌 Motivos detectados"):
+        if motivos:
+            for m in motivos:
+                st.write("•", m)
+        else:
+            st.write("• Nenhum padrão forte detectado.")
+
