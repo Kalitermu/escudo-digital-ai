@@ -401,3 +401,48 @@ with st.expander("🧠 Log SOC"):
     st.write("• IA heurística ligada")
     st.write("• Defesa automática pronta")
 
+
+# ==========================
+# 🌑 DARK SOC HUD MODE
+# ==========================
+st.markdown("""
+<style>
+
+html, body, [class*="css"] {
+    background-color: #0b0f14;
+    color: #00ff99;
+}
+
+.stApp {
+    background-color: #0b0f14;
+}
+
+h1, h2, h3 {
+    color: #00ff99 !important;
+    text-shadow: 0 0 10px rgba(0,255,120,0.6);
+}
+
+.stButton>button {
+    background: #111827;
+    color: #00ff99;
+    border: 1px solid #00ff99;
+    border-radius: 8px;
+}
+
+.stButton>button:hover {
+    background: #00ff99;
+    color: black;
+}
+
+textarea {
+    background: #111827 !important;
+    color: #00ff99 !important;
+}
+
+.stProgress > div > div > div > div {
+    background-color: #00ff99;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
