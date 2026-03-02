@@ -253,3 +253,65 @@ st.write("• Texto: score de golpe + explicação + links suspeitos")
 st.write("• Print: upload (na próxima versão ativamos OCR automático)")
 st.write("• Vídeo: triagem leve para sinais de IA/edição (heurística)")
 st.caption("⚠️ Detecção de IA/deepfake é probabilística. Use como alerta, não como prova.")
+cat >> app.py << 'EOF'
+
+# ==========================
+# 🧠 IA VIVA (memória leve)
+# ==========================
+try:
+    import json, os
+
+    hist_file = "historico.json"
+
+    if os.path.exists(hist_file):
+        with open(hist_file, "r", encoding="utf-8") as h:
+            hist = json.load(h)
+
+        ultimos = hist[:10] if isinstance(hist, list) else []
+
+        repeticoes = 0
+        for ev in ultimos:
+            txt = str(ev.get("preview", "")).lower()
+            if any(w in txt for w in ["pix","banco","codigo","verificacao"]):
+                repeticoes += 1
+
+        if repeticoes >= 3:
+            st.info("🧠 IA detectou padrão recorrente.")
+except:
+    pass
+
+
+# ==========================
+# 🎞️ TRIAGEM IA EM VÍDEO
+# ==========================
+st.subheader("🎞️ Vídeo (triagem IA)")
+
+vid = st.file_uploader("Envie um vídeo", type=["mp4","mov","avi"])
+
+if vid:
+    nome = vid.name.lower()
+
+    score_video = 15
+    motivos = []
+
+    if any(w in nome for w in ["ai","deepfake","faceswap","fake"]):
+        score_video += 40
+        motivos.append("Nome do arquivo sugere conteúdo gerado por IA.")
+
+    if vid.size < 500000:
+        score_video += 20
+        motivos.append("Arquivo muito pequeno (possível render IA).")
+
+    score_video = max(0, min(100, score_video))
+
+    st.progress(score_video)
+    st.write(f"🎯 Chance de ser IA: {score_video}/100")
+
+    for m in motivos:
+        st.write("•", m)
+
+    if score_video >= 60:
+        st.warning("⚠️ Possível vídeo gerado por IA")
+    else:
+        st.success("✅ Sem sinais fortes de IA")
+
