@@ -1,3 +1,7 @@
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd="/usr/bin/tesseract"
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd="/usr/bin/tesseract"
 import re
 import tempfile
 import numpy as np
@@ -225,7 +229,12 @@ with tab1:
             if urls:
                 st.markdown("### Links encontrados")
                 for u in urls:
+                    alerta = verificar_dominio_suspeito(u)
+                    if alerta:
+                        st.warning(alerta + " → " + u)
                     st.write("• " + u)
+
+
 
             ai_s, ai_r = ia_text_score(text)
             st.markdown("---")
@@ -237,6 +246,13 @@ with tab1:
 # ---------- TAB 2: PRINT ----------
 with tab2:
     img_file = st.file_uploader("Envie um print (PNG/JPG)", type=["png","jpg","jpeg"])
+    import pytesseract
+    from PIL import Image
+    if img_file:
+        img = Image.open(img_file)
+        texto = pytesseract.image_to_string(img, lang="por")
+        st.subheader("Texto detectado:")
+        st.write(texto)
     st.caption("Obs: leitura de texto do print (OCR) pesado não está ativado aqui pra manter rápido e estável.")
     if img_file:
         img = Image.open(img_file).convert("RGB")
@@ -657,4 +673,46 @@ def mostrar_ia_status():
 
 
 mostrar_ia_status()
+
+# ==========================
+
+# 🛡️ DETECTOR DE DOMÍNIO OFICIAL
+
+# ==========================
+
+DOMINIOS_GOV = ["gov.br"]
+
+PALAVRAS_GOV = ["mei","receita","inss","gov","brasil","cpf"]
+
+
+
+DOMINIOS_BANCOS = ["itau.com.br","nubank.com.br","bb.com.br","caixa.gov.br","santander.com.br","bradesco.com.br"]
+
+PALAVRAS_BANCOS = ["banco","itau","nubank","caixa","bradesco","santander"]
+
+
+
+def verificar_dominio_suspeito(url):
+
+    dom = url.lower()
+
+
+
+    for p in PALAVRAS_GOV:
+
+        if p in dom and not any(d in dom for d in DOMINIOS_GOV):
+
+            return "⚠️ Possível site falso do governo"
+
+
+
+    for p in PALAVRAS_BANCOS:
+
+        if p in dom and not any(d in dom for d in DOMINIOS_BANCOS):
+
+            return "⚠️ Possível site falso de banco"
+
+
+
+    return None
 
