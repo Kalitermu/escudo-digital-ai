@@ -716,3 +716,32 @@ def verificar_dominio_suspeito(url):
 
     return None
 
+# CONSULTA CNPJ
+def consultar_cnpj(cnpj):
+    import requests
+    url = f"https://brasilapi.com.br/api/cnpj/v1/{cnpj}"
+    try:
+        r = requests.get(url, timeout=10)
+        if r.status_code == 200:
+            return r.json()
+        else:
+            return None
+    except:
+        return None
+
+st.markdown("---")
+st.header("🔎 Consulta de CNPJ")
+cnpj = st.text_input("Digite o CNPJ da empresa")
+if st.button("Pesquisar CNPJ"):
+    if cnpj:
+        dados = consultar_cnpj(cnpj)
+        if dados:
+            st.success("Empresa encontrada")
+            st.write("Razão social:", dados.get("razao_social"))
+            st.write("Nome fantasia:", dados.get("nome_fantasia"))
+            st.write("Situação:", dados.get("descricao_situacao_cadastral"))
+            st.write("Cidade:", dados.get("municipio"))
+            st.write("Estado:", dados.get("uf"))
+        else:
+            st.error("CNPJ não encontrado")
+
