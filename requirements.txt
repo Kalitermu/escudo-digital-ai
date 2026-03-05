@@ -1,4 +1,7 @@
 streamlit
 pandas
-requests
 numpy
+requests
+pillow
+pytesseract
+opencv-python-headless
