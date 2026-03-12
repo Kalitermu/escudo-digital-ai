@@ -1,22 +1,79 @@
 
 import streamlit as st
+import requests
+import random
+
+st.set_page_config(page_title="Escudo Digital IA")
+
+st.title("🛡️ ESCUDO DIGITAL IA")
+st.write("SOC de monitoramento de golpes e IP")
 
 # ======================
-# Relatório SOC
+# Detector de IP
 # ======================
 
-st.header("📄 Relatório de análise")
+st.header("🌍 Detector de localização do IP")
 
-if st.button("Gerar relatório SOC"):
+ip = st.text_input("Digite domínio ou IP")
 
-    st.write("### Resultado da análise")
+if st.button("Localizar IP"):
 
-    ip = "N/A"
+    r = requests.get(f"http://ip-api.com/json/{ip}")
+    data = r.json()
 
-    st.write("IP analisado:", ip)
+    if data["status"] == "success":
 
-    if "data" in locals():
-        if data["status"] == "success":
-            st.write("País:", data["country"])
-            st.write("Cidade:", data["city"])
-            st.write("Organização:", data["org"])
+        st.success("IP encontrado")
+
+        st.write("IP:", data["query"])
+        st.write("País:", data["country"])
+        st.write("Cidade:", data["city"])
+        st.write("Organização:", data["org"])
+
+    else:
+        st.error("Não foi possível localizar o IP")
+
+# ======================
+# Radar SOC
+# ======================
+
+st.header("📡 RADAR SOC")
+
+col1, col2, col3 = st.columns(3)
+
+col1.metric("Nível de ameaça", random.randint(10,90))
+col2.metric("Energia do escudo", random.randint(60,100))
+col3.metric("Integridade da varredura", random.randint(80,100))
+
+# ======================
+# Detector de golpe
+# ======================
+
+st.header("🧠 Detector de golpe")
+
+texto = st.text_area("Cole a mensagem suspeita")
+
+if st.button("Analisar mensagem"):
+
+    palavras = [
+        "pix","senha","codigo","urgente",
+        "transferencia","banco","login",
+        "verificacao","confirmar"
+    ]
+
+    score = 0
+
+    for p in palavras:
+        if p in texto.lower():
+            score += 15
+
+    st.write("Score de risco:", score)
+
+    if score >= 40:
+        st.error("🚨 Alto risco de golpe")
+
+    elif score >= 20:
+        st.warning("⚠️ Mensagem suspeita")
+
+    else:
+        st.success("Baixo risco")
