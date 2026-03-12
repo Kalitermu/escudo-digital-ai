@@ -107,3 +107,29 @@ if st.button("Localizar IP"):
     except:
         st.error("Não foi possível localizar o IP")
 
+
+import folium
+from streamlit_folium import st_folium
+
+st.header("🌍 Mapa de origem do IP")
+
+ip = st.text_input("Digite um IP ou domínio")
+
+if st.button("Localizar IP no mapa"):
+
+    import requests
+    r = requests.get(f"http://ip-api.com/json/{ip}")
+    data = r.json()
+
+    lat = data["lat"]
+    lon = data["lon"]
+
+    mapa = folium.Map(location=[lat, lon], zoom_start=4)
+
+    folium.Marker(
+        [lat, lon],
+        popup=f"{data['city']} - {data['country']}"
+    ).add_to(mapa)
+
+    st_folium(mapa, width=700)
+
