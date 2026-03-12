@@ -6,7 +6,6 @@ import datetime
 import io
 from PIL import Image
 from reportlab.pdfgen import canvas
-
 import folium
 from streamlit_folium import st_folium
 
@@ -17,27 +16,26 @@ except:
     OCR_OK = False
 
 
-# CONFIG
 st.set_page_config(page_title="Escudo Digital IA", layout="wide")
 
 
-# ESTILO CYBER
+# 🎨 fundo melhor
 st.markdown("""
 <style>
 
 .stApp {
-background: linear-gradient(135deg,#020617,#0f172a);
+background: linear-gradient(135deg,#020617,#071a2f);
 color:white;
 }
 
 h1,h2,h3 {
 color:#00ffa6;
-text-shadow:0 0 10px #00ffa6;
+text-shadow:0 0 6px #00ffa6;
 }
 
 .stButton>button {
-background: linear-gradient(90deg,#00ffa6,#00bfff);
-border-radius:12px;
+background: linear-gradient(90deg,#00ffa6,#00c2ff);
+border-radius:10px;
 color:black;
 font-weight:bold;
 }
@@ -73,9 +71,10 @@ def registrar(tipo,score,detalhe=""):
         json.dump(historico,f)
 
 
-# ========================
+
+# =================
 # OSINT IP
-# ========================
+# =================
 
 st.header("🌍 Análise OSINT de IP")
 
@@ -87,39 +86,40 @@ if st.button("Analisar IP"):
 
         r = requests.get(f"http://ip-api.com/json/{ip}").json()
 
-        st.write("IP:", ip)
-        st.write("País:", r.get("country"))
-        st.write("Cidade:", r.get("city"))
-        st.write("ISP:", r.get("isp"))
-        st.write("ASN:", r.get("as"))
+        st.write("IP:",ip)
+        st.write("País:",r.get("country"))
+        st.write("Cidade:",r.get("city"))
+        st.write("ISP:",r.get("isp"))
+        st.write("ASN:",r.get("as"))
 
         registrar("ip",1,ip)
 
-        if r.get("lat"):
+        lat = r.get("lat")
+        lon = r.get("lon")
 
-            mapa = folium.Map(
-                location=[r["lat"], r["lon"]],
-                zoom_start=4,
-                width=700,
-                height=450
-            )
-
-            folium.Marker(
-                [r["lat"], r["lon"]],
-                tooltip=ip
-            ).add_to(mapa)
+        if lat and lon:
 
             st.subheader("🌍 Origem do IP")
 
-            st_folium(mapa,width=700,height=450)
+            mapa = folium.Map(
+                location=[lat,lon],
+                zoom_start=4
+            )
+
+            folium.Marker(
+                [lat,lon],
+                tooltip=ip
+            ).add_to(mapa)
+
+            st_folium(mapa,width=700,height=500)
 
     except:
         st.error("Erro na consulta")
 
 
-# ========================
+# =================
 # PHISHING
-# ========================
+# =================
 
 st.header("🚨 Detector de Phishing")
 
@@ -152,9 +152,9 @@ if st.button("Analisar mensagem"):
     registrar("mensagem",score,msg[:80])
 
 
-# ========================
+# =================
 # DOMÍNIO
-# ========================
+# =================
 
 st.header("🔎 Scanner de domínio")
 
@@ -166,10 +166,10 @@ if st.button("Scanner domínio"):
 
         r = requests.get(f"http://ip-api.com/json/{dominio}").json()
 
-        st.write("Domínio:", dominio)
-        st.write("País:", r.get("country"))
-        st.write("ISP:", r.get("isp"))
-        st.write("ASN:", r.get("as"))
+        st.write("Domínio:",dominio)
+        st.write("País:",r.get("country"))
+        st.write("ISP:",r.get("isp"))
+        st.write("ASN:",r.get("as"))
 
         registrar("dominio",1,dominio)
 
@@ -177,9 +177,9 @@ if st.button("Scanner domínio"):
         st.error("Erro")
 
 
-# ========================
-# PRINT
-# ========================
+# =================
+# PRINT OCR
+# =================
 
 st.header("📷 Analisar print de e-mail ou WhatsApp")
 
@@ -202,9 +202,9 @@ if file:
         registrar("imagem",1,texto[:80])
 
 
-# ========================
+# =================
 # EMAIL
-# ========================
+# =================
 
 st.header("📧 Analisar e-mail suspeito")
 
@@ -213,8 +213,9 @@ email = st.text_area("Cole o conteúdo do e-mail")
 if st.button("Analisar e-mail"):
 
     palavras = [
-        "senha","urgente","pix",
-        "bloqueado","verificar"
+        "senha","urgente",
+        "pix","bloqueado",
+        "verificar"
     ]
 
     score = 0
@@ -232,9 +233,9 @@ if st.button("Analisar e-mail"):
     registrar("email",score,email[:80])
 
 
-# ========================
+# =================
 # HISTÓRICO
-# ========================
+# =================
 
 st.header("📊 Histórico SOC")
 
@@ -245,15 +246,15 @@ if historico:
     st.dataframe(df)
 
 
-# ========================
-# PAINEL SOC
-# ========================
+# =================
+# PAINEL
+# =================
 
 st.header("📡 Painel SOC")
 
 eventos = len(historico)
 
-suspeitos = len([e for e in historico if e.get("score",0) >= 2])
+suspeitos = len([e for e in historico if e.get("score",0)>=2])
 
 alertas = suspeitos
 
@@ -264,25 +265,25 @@ col2.metric("Eventos suspeitos",suspeitos)
 col3.metric("Alertas ativos",alertas)
 
 
-# ========================
+# =================
 # RADAR
-# ========================
+# =================
 
 st.header("🛰️ Radar de ameaça")
 
-if alertas >= 5:
+if alertas >=5:
     st.error("🚨 Nível alto de ameaça")
 
-elif alertas >= 1:
+elif alertas >=1:
     st.warning("⚠️ Atividade suspeita")
 
 else:
     st.success("🟢 Ambiente seguro")
 
 
-# ========================
+# =================
 # RELATÓRIO
-# ========================
+# =================
 
 st.header("📄 Gerar relatório")
 
@@ -300,7 +301,7 @@ if st.button("Gerar relatório PDF"):
 
     for e in historico:
 
-        linha = f"{e.get('data','?')} | {e.get('tipo','?')} | score:{e.get('score','0')}"
+        linha = f"{e.get('data')} | {e.get('tipo')} | score:{e.get('score')}"
 
         c.drawString(50,y,linha)
 
@@ -309,7 +310,7 @@ if st.button("Gerar relatório PDF"):
     c.save()
 
     st.download_button(
-        "⬇️ Baixar relatório",
+        "Baixar relatório",
         buffer.getvalue(),
         "relatorio_soc.pdf"
     )
