@@ -7,30 +7,21 @@ import io
 from PIL import Image
 from reportlab.pdfgen import canvas
 
+import folium
+from streamlit_folium import st_folium
+
 try:
     import pytesseract
     OCR_OK = True
 except:
     OCR_OK = False
 
-try:
-    import folium
-    from streamlit_folium import st_folium
-    MAP_OK = True
-except:
-    MAP_OK = False
 
-
-# ======================
 # CONFIG
-# ======================
-
 st.set_page_config(page_title="Escudo Digital IA", layout="wide")
 
-# ======================
-# ESTILO CYBER
-# ======================
 
+# ESTILO CYBER
 st.markdown("""
 <style>
 
@@ -54,18 +45,18 @@ font-weight:bold;
 </style>
 """, unsafe_allow_html=True)
 
+
 st.title("🛡️ ESCUDO DIGITAL IA")
 st.subheader("SOC de monitoramento de golpes e análise OSINT")
 
-# ======================
-# carregar histórico
-# ======================
 
+# carregar histórico
 try:
     with open("historico.json","r") as f:
         historico = json.load(f)
 except:
     historico = []
+
 
 def registrar(tipo,score,detalhe=""):
 
@@ -81,9 +72,10 @@ def registrar(tipo,score,detalhe=""):
     with open("historico.json","w") as f:
         json.dump(historico,f)
 
-# ======================
-# IP OSINT
-# ======================
+
+# ========================
+# OSINT IP
+# ========================
 
 st.header("🌍 Análise OSINT de IP")
 
@@ -103,13 +95,13 @@ if st.button("Analisar IP"):
 
         registrar("ip",1,ip)
 
-        if MAP_OK and r.get("lat"):
+        if r.get("lat"):
 
             mapa = folium.Map(
                 location=[r["lat"], r["lon"]],
                 zoom_start=4,
                 width=700,
-                height=400
+                height=450
             )
 
             folium.Marker(
@@ -117,16 +109,17 @@ if st.button("Analisar IP"):
                 tooltip=ip
             ).add_to(mapa)
 
-            st.subheader("🗺️ Origem do IP")
+            st.subheader("🌍 Origem do IP")
 
-            st_folium(mapa,width=700,height=400)
+            st_folium(mapa,width=700,height=450)
 
     except:
         st.error("Erro na consulta")
 
-# ======================
+
+# ========================
 # PHISHING
-# ======================
+# ========================
 
 st.header("🚨 Detector de Phishing")
 
@@ -158,9 +151,10 @@ if st.button("Analisar mensagem"):
 
     registrar("mensagem",score,msg[:80])
 
-# ======================
+
+# ========================
 # DOMÍNIO
-# ======================
+# ========================
 
 st.header("🔎 Scanner de domínio")
 
@@ -182,9 +176,10 @@ if st.button("Scanner domínio"):
     except:
         st.error("Erro")
 
-# ======================
+
+# ========================
 # PRINT
-# ======================
+# ========================
 
 st.header("📷 Analisar print de e-mail ou WhatsApp")
 
@@ -206,9 +201,10 @@ if file:
 
         registrar("imagem",1,texto[:80])
 
-# ======================
+
+# ========================
 # EMAIL
-# ======================
+# ========================
 
 st.header("📧 Analisar e-mail suspeito")
 
@@ -235,9 +231,10 @@ if st.button("Analisar e-mail"):
 
     registrar("email",score,email[:80])
 
-# ======================
+
+# ========================
 # HISTÓRICO
-# ======================
+# ========================
 
 st.header("📊 Histórico SOC")
 
@@ -247,13 +244,10 @@ if historico:
 
     st.dataframe(df)
 
-    st.subheader("📈 Eventos detectados")
 
-    st.bar_chart(df["tipo"].value_counts())
-
-# ======================
+# ========================
 # PAINEL SOC
-# ======================
+# ========================
 
 st.header("📡 Painel SOC")
 
@@ -269,9 +263,10 @@ col1.metric("Eventos detectados",eventos)
 col2.metric("Eventos suspeitos",suspeitos)
 col3.metric("Alertas ativos",alertas)
 
-# ======================
+
+# ========================
 # RADAR
-# ======================
+# ========================
 
 st.header("🛰️ Radar de ameaça")
 
@@ -284,9 +279,10 @@ elif alertas >= 1:
 else:
     st.success("🟢 Ambiente seguro")
 
-# ======================
+
+# ========================
 # RELATÓRIO
-# ======================
+# ========================
 
 st.header("📄 Gerar relatório")
 
