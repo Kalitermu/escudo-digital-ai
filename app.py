@@ -14,7 +14,7 @@ st.header("🌍 Detector de localização do IP")
 
 ip = st.text_input("Digite domínio ou IP")
 
-if ip:
+if st.button("Localizar IP"):
 
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
