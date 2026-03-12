@@ -290,3 +290,45 @@ elif nivel > 40:
     st.warning("⚠️ Atividade suspeita")
 else:
     st.success("🟢 Ambiente seguro")
+    # ==============================
+# 📧 ANALISADOR DE E-MAIL
+# ==============================
+
+st.header("📧 Analisar e-mail suspeito")
+
+email_texto = st.text_area("Cole o conteúdo do e-mail")
+
+if st.button("Analisar e-mail"):
+
+    palavras = [
+        "pix",
+        "senha",
+        "codigo",
+        "urgente",
+        "transferencia",
+        "banco",
+        "login",
+        "verificacao",
+        "confirmar",
+        "clique aqui",
+        "sua conta foi bloqueada"
+    ]
+
+    score = 0
+
+    for p in palavras:
+        if p in email_texto.lower():
+            score += 15
+
+    st.write("Score de risco:", score)
+
+    if score >= 40:
+        st.error("🚨 E-mail possivelmente fraudulento")
+
+    elif score >= 20:
+        st.warning("⚠️ E-mail suspeito")
+
+    else:
+        st.success("🟢 E-mail aparentemente seguro")
+
+    salvar_evento("email", email_texto[:300], score)
