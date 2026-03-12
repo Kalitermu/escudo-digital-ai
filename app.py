@@ -30,6 +30,22 @@ if st.button("Localizar IP"):
     except:
         st.error("Não foi possível localizar o IP")
 
+if st.button("Localizar IP"):
+
+    try:
+        r = requests.get(f"http://ip-api.com/json/{ip}")
+        data = r.json()
+
+        st.success("IP encontrado")
+
+        st.write("IP:", data["query"])
+        st.write("País:", data["country"])
+        st.write("Cidade:", data["city"])
+        st.write("Organização:", data["org"])
+
+    except:
+        st.error("Não foi possível localizar o IP")
+
 # ======================
 # Detector de golpes
 # ======================
@@ -87,6 +103,7 @@ import requests
 st.header("🌍 Detector de localização do IP")
 
 ip = st.text_input("Digite domínio ou IP", key="ip_lookup")
+if st.button("Localizar IP"):
 
 if st.button("Localizar IP"):
 
