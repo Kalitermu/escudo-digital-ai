@@ -1,18 +1,18 @@
 import streamlit as st
 import requests
-import random
 import pandas as pd
+import random
 from PIL import Image
 import pytesseract
 
-st.set_page_config(page_title="Escudo Digital IA")
+st.set_page_config(page_title="Escudo Digital IA", layout="wide")
 
 st.title("🛡️ ESCUDO DIGITAL IA")
 st.write("SOC de monitoramento de golpes e análise OSINT")
 
-# ==============================
-# 🌍 OSINT DE IP
-# ==============================
+# =========================================
+# 🌍 ANALISE OSINT DE IP
+# =========================================
 
 st.header("🌍 Análise OSINT de IP")
 
@@ -21,20 +21,29 @@ ip = st.text_input("Digite domínio ou IP")
 if st.button("Analisar IP"):
 
     try:
-        r = requests.get(f"http://ip-api.com/json/{ip}")
+
+        r = requests.get(f"http://ip-api.com/json/{ip}", timeout=10)
         data = r.json()
 
         if data["status"] == "success":
 
             st.success("IP encontrado")
 
-            st.write("IP:", data["query"])
-            st.write("País:", data["country"])
-            st.write("Cidade:", data["city"])
-            st.write("Região:", data["regionName"])
-            st.write("ISP:", data["isp"])
-            st.write("Organização:", data["org"])
-            st.write("ASN:", data["as"])
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.write("IP:", data["query"])
+                st.write("País:", data["country"])
+                st.write("Cidade:", data["city"])
+                st.write("Região:", data["regionName"])
+
+            with col2:
+                st.write("ISP:", data["isp"])
+                st.write("Organização:", data["org"])
+                st.write("ASN:", data["as"])
+                st.write("Fuso horário:", data["timezone"])
+
+            st.subheader("📍 Localização no mapa")
 
             mapa = pd.DataFrame({
                 "lat":[data["lat"]],
@@ -50,9 +59,9 @@ if st.button("Analisar IP"):
         st.error("Erro ao consultar IP")
 
 
-# ==============================
+# =========================================
 # 🚨 DETECTOR DE PHISHING
-# ==============================
+# =========================================
 
 st.header("🚨 Detector de Phishing")
 
@@ -61,15 +70,22 @@ mensagem = st.text_area("Cole mensagem ou link suspeito")
 if st.button("Analisar mensagem"):
 
     palavras = [
-        "pix","senha","codigo","urgente",
-        "transferencia","banco","login",
-        "verificacao","confirmar",
-        "clique aqui","atualize conta"
+        "pix",
+        "senha",
+        "codigo",
+        "urgente",
+        "transferencia",
+        "banco",
+        "login",
+        "verificacao",
+        "confirmar",
+        "clique aqui"
     ]
 
     score = 0
 
     for p in palavras:
+
         if p in mensagem.lower():
             score += 15
 
@@ -85,9 +101,9 @@ if st.button("Analisar mensagem"):
         st.success("🟢 Baixo risco")
 
 
-# ==============================
+# =========================================
 # 📷 ANALISAR PRINT
-# ==============================
+# =========================================
 
 st.header("📷 Analisar print de e-mail ou WhatsApp")
 
@@ -100,54 +116,67 @@ if imagem:
 
     img = Image.open(imagem)
 
-    st.image(img, caption="Imagem enviada")
+    st.image(img)
 
-    texto_extraido = pytesseract.image_to_string(img)
+    try:
 
-    st.subheader("Texto detectado")
+        texto_extraido = pytesseract.image_to_string(img)
 
-    st.write(texto_extraido)
+        st.subheader("Texto detectado")
 
-    palavras = [
-        "pix","senha","codigo","urgente",
-        "transferencia","banco","login",
-        "verificacao","confirmar"
-    ]
+        st.write(texto_extraido)
 
-    score = 0
+        palavras = [
+            "pix",
+            "senha",
+            "codigo",
+            "urgente",
+            "transferencia",
+            "banco",
+            "login",
+            "verificacao",
+            "confirmar"
+        ]
 
-    for p in palavras:
-        if p in texto_extraido.lower():
-            score += 15
+        score = 0
 
-    st.write("Score de risco:", score)
+        for p in palavras:
 
-    if score >= 40:
-        st.error("🚨 Possível golpe detectado")
+            if p in texto_extraido.lower():
+                score += 15
 
-    elif score >= 20:
-        st.warning("⚠️ Conteúdo suspeito")
+        st.write("Score de risco:", score)
 
-    else:
-        st.success("🟢 Baixo risco")
+        if score >= 40:
+            st.error("🚨 Possível golpe detectado")
+
+        elif score >= 20:
+            st.warning("⚠️ Conteúdo suspeito")
+
+        else:
+            st.success("🟢 Baixo risco")
+
+    except:
+
+        st.warning("OCR não disponível no servidor")
 
 
-# ==============================
+# =========================================
 # 📡 PAINEL SOC
-# ==============================
+# =========================================
 
 st.header("📡 Painel SOC")
 
-col1,col2,col3 = st.columns(3)
+col1, col2, col3 = st.columns(3)
 
 col1.metric("Eventos detectados", random.randint(10,150))
 col2.metric("IPs analisados", random.randint(50,300))
 col3.metric("Alertas ativos", random.randint(0,20))
 
 
-# ==============================
+# =========================================
 # 🛰️ RADAR DE AMEAÇA
-# ==============================
+# =========================================
 
 st.header("🛰️ Radar de ameaça")
 
