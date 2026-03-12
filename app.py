@@ -13,8 +13,18 @@ st.write("Detector de golpes + análise de IP")
 st.header("🌍 Detector de localização do IP")
 
 ip = st.text_input("Digite domínio ou IP")
-
 if st.button("Localizar IP"):
+    try:
+        r = requests.get(f"http://ip-api.com/json/{ip}")
+        data = r.json()
+        st.success("IP encontrado")
+        st.write("IP:", data["query"])
+        st.write("País:", data["country"])
+        st.write("Cidade:", data["city"])
+        st.write("Organização:", data["org"])
+    except:
+        st.error("Não foi possível localizar o IP")
+
 
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
@@ -52,8 +62,18 @@ st.write("Detector de golpes + análise de IP")
 st.header("🌍 Detector de localização do IP")
 
 ip = st.text_input("Digite domínio ou IP")
-
 if st.button("Localizar IP"):
+    try:
+        r = requests.get(f"http://ip-api.com/json/{ip}")
+        data = r.json()
+        st.success("IP encontrado")
+        st.write("IP:", data["query"])
+        st.write("País:", data["country"])
+        st.write("Cidade:", data["city"])
+        st.write("Organização:", data["org"])
+    except:
+        st.error("Não foi possível localizar o IP")
+
 
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
@@ -69,7 +89,6 @@ if st.button("Localizar IP"):
     except:
         st.error("Não foi possível localizar o IP")
 
-if st.button("Localizar IP"):
 
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
@@ -143,8 +162,17 @@ st.header("🌍 Detector de localização do IP")
 
 ip = st.text_input("Digite domínio ou IP", key="ip_lookup")
 if st.button("Localizar IP"):
+    try:
+        r = requests.get(f"http://ip-api.com/json/{ip}")
+        data = r.json()
+        st.success("IP encontrado")
+        st.write("IP:", data["query"])
+        st.write("País:", data["country"])
+        st.write("Cidade:", data["city"])
+        st.write("Organização:", data["org"])
+    except:
+        st.error("Não foi possível localizar o IP")
 
-if st.button("Localizar IP"):
 
     try:
         ip_resolvido = socket.gethostbyname(ip)
