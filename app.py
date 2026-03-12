@@ -129,3 +129,20 @@ if st.button("Analisar mensagem"):
 
     else:
         st.success("Baixo risco")
+
+# ======================
+# Histórico de IP
+# ======================
+
+if "historico_ip" not in st.session_state:
+    st.session_state.historico_ip = []
+
+if ip and "data" in locals():
+    if data["status"] == "success":
+        st.session_state.historico_ip.append(data["query"])
+
+st.header("📜 Histórico de IP analisados")
+
+for h in st.session_state.historico_ip:
+    st.write("•", h)
+
