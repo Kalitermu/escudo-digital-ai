@@ -115,3 +115,50 @@ elif nivel > 40:
 
 else:
     st.success("🟢 Ambiente seguro")
+    # ======================
+# Análise de prints (OCR)
+# ======================
+
+from PIL import Image
+import pytesseract
+
+st.header("📷 Analisar print de golpe")
+
+imagem = st.file_uploader("Envie print de e-mail, WhatsApp ou SMS", type=["png","jpg","jpeg"])
+
+if imagem:
+
+    img = Image.open(imagem)
+
+    st.image(img, caption="Imagem enviada", use_container_width=True)
+
+    texto_extraido = pytesseract.image_to_string(img)
+
+    st.subheader("📝 Texto detectado")
+
+    st.write(texto_extraido)
+
+    # análise de golpe
+
+    palavras = [
+        "pix","senha","codigo","urgente",
+        "transferencia","banco","login",
+        "verificacao","confirmar","clique"
+    ]
+
+    score = 0
+
+    for p in palavras:
+        if p in texto_extraido.lower():
+            score += 15
+
+    st.write("Score de risco:", score)
+
+    if score >= 40:
+        st.error("🚨 Possível golpe detectado")
+
+    elif score >= 20:
+        st.warning("⚠️ Conteúdo suspeito")
+
+    else:
+        st.success("🟢 Baixo risco")
