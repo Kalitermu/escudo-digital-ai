@@ -161,4 +161,6 @@ if imagem:
         st.warning("⚠️ Conteúdo suspeito")
 
     else:
-        st.success("🟢 Baixo risco")
+        st.success("🟢 Baixo risco)
+                   pillow
+pytesseract
