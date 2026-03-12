@@ -1,6 +1,9 @@
+
 streamlit
 pandas
 requests
 pillow
 pytesseract
 reportlab
+folium
+streamlit-folium
