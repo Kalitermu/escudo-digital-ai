@@ -41,3 +41,4 @@ streamlit-folium
 requests
 folium
 streamlit-folium
+reportlab

@@ -184,3 +184,38 @@ if st.button("Gerar relatório SOC"):
     else:
         st.write("Classificação: 🟢 NORMAL")
 
+
+# ======================
+# Relatório SOC em PDF
+# ======================
+
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+import tempfile
+
+st.header("📁 Exportar relatório PDF")
+
+if st.button("Gerar relatório PDF"):
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        c = canvas.Canvas(tmp.name, pagesize=letter)
+
+        c.drawString(50,750,"ESCUDO DIGITAL IA - Relatório SOC")
+
+        if "data" in locals():
+            c.drawString(50,720,f"IP: {data.get('query','')}")
+            c.drawString(50,700,f"País: {data.get('country','')}")
+            c.drawString(50,680,f"Cidade: {data.get('city','')}")
+            c.drawString(50,660,f"Organização: {data.get('org','')}")
+
+        c.drawString(50,620,"Análise gerada automaticamente pelo Escudo Digital IA")
+
+        c.save()
+
+        with open(tmp.name,"rb") as f:
+            st.download_button(
+                "⬇️ Baixar relatório",
+                f,
+                file_name="relatorio_soc.pdf"
+            )
+
