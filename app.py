@@ -15,17 +15,19 @@ try:
 except:
     OCR_OK=False
 
+
 st.set_page_config(page_title="Escudo Digital IA",layout="wide")
 
+
 # =========================
-# ESTILO VISUAL
+# ESTILO VISUAL MELHORADO
 # =========================
 
 st.markdown("""
 <style>
 
 .stApp{
-background: linear-gradient(135deg,#020617,#071a2f);
+background: linear-gradient(135deg,#0f172a,#1e3a5f);
 color:white;
 }
 
@@ -35,19 +37,38 @@ color:white !important;
 
 h1,h2,h3{
 color:#00ffa6;
-text-shadow:0 0 6px #00ffa6;
+text-shadow:0 0 5px #00ffa6;
 }
 
+/* Inputs */
+
+input{
+background:#f1f5f9 !important;
+color:black !important;
+border-radius:8px !important;
+}
+
+/* Textarea */
+
+textarea{
+background:#f1f5f9 !important;
+color:black !important;
+}
+
+/* Botões */
+
 .stButton>button{
-background:linear-gradient(90deg,#00ffa6,#00c2ff);
-border-radius:10px;
+background:linear-gradient(90deg,#00ffa6,#00bfff);
+border-radius:12px;
 color:black;
 font-weight:bold;
 }
 
+/* métricas */
+
 [data-testid="stMetricValue"]{
 color:white !important;
-font-size:28px;
+font-size:30px;
 }
 
 [data-testid="stMetricLabel"]{
@@ -57,8 +78,10 @@ color:#a7f3d0 !important;
 </style>
 """,unsafe_allow_html=True)
 
+
 st.title("🛡️ ESCUDO DIGITAL IA")
 st.subheader("SOC de monitoramento de golpes e análise OSINT")
+
 
 # =========================
 # HISTÓRICO
@@ -76,6 +99,7 @@ try:
 except:
     mapa_ips=[]
 
+
 def registrar(tipo,score,detalhe=""):
 
     evento={
@@ -90,6 +114,7 @@ def registrar(tipo,score,detalhe=""):
     with open("historico.json","w") as f:
         json.dump(historico,f)
 
+
 def registrar_ip(ip,lat,lon):
 
     mapa_ips.append({
@@ -100,6 +125,7 @@ def registrar_ip(ip,lat,lon):
 
     with open("mapa_ips.json","w") as f:
         json.dump(mapa_ips,f)
+
 
 # =========================
 # OSINT IP
@@ -114,6 +140,8 @@ if st.button("Analisar IP"):
     try:
 
         r=requests.get(f"http://ip-api.com/json/{ip}").json()
+
+        st.success("Consulta realizada")
 
         st.write("IP:",ip)
         st.write("País:",r.get("country"))
@@ -130,9 +158,15 @@ if st.button("Analisar IP"):
 
             registrar_ip(ip,lat,lon)
 
-            mapa=folium.Map(location=[lat,lon],zoom_start=4)
+            mapa=folium.Map(
+                location=[lat,lon],
+                zoom_start=4
+            )
 
-            folium.Marker([lat,lon],tooltip=ip).add_to(mapa)
+            folium.Marker(
+                [lat,lon],
+                tooltip=ip
+            ).add_to(mapa)
 
             st.subheader("🌍 Origem do IP")
 
@@ -141,8 +175,9 @@ if st.button("Analisar IP"):
     except:
         st.error("Erro na consulta")
 
+
 # =========================
-# MAPA GLOBAL
+# RADAR GLOBAL
 # =========================
 
 st.header("🌎 Radar global de ameaças")
@@ -155,15 +190,16 @@ if mapa_ips:
 
         folium.CircleMarker(
             location=[ip["lat"],ip["lon"]],
-            radius=5,
+            radius=6,
             color="red",
             fill=True
         ).add_to(mapa_global)
 
-    st_folium(mapa_global,width=900,height=450)
+    st_folium(mapa_global,width=900,height=500)
+
 
 # =========================
-# DETECTOR PHISHING
+# PHISHING
 # =========================
 
 st.header("🚨 Detector de Phishing")
@@ -173,14 +209,15 @@ msg=st.text_area("Cole mensagem ou link suspeito")
 if st.button("Analisar mensagem"):
 
     palavras=[
-        "pix","senha","urgente","banco",
-        "login","clique","transferência",
-        "verificação","código"
+        "pix","senha","urgente",
+        "banco","login","clique",
+        "transferência","verificação"
     ]
 
     score=0
 
     for p in palavras:
+
         if p in msg.lower():
             score+=1
 
@@ -194,6 +231,7 @@ if st.button("Analisar mensagem"):
         st.success("🟢 Baixo risco")
 
     registrar("mensagem",score,msg[:100])
+
 
 # =========================
 # DOMÍNIO
@@ -218,8 +256,9 @@ if st.button("Scanner domínio"):
     except:
         st.error("Erro")
 
+
 # =========================
-# OCR PRINT
+# OCR
 # =========================
 
 st.header("📷 Analisar print de e-mail ou WhatsApp")
@@ -242,6 +281,7 @@ if file:
 
         registrar("imagem",1,texto[:100])
 
+
 # =========================
 # EMAIL
 # =========================
@@ -252,11 +292,12 @@ email=st.text_area("Cole o conteúdo do e-mail")
 
 if st.button("Analisar e-mail"):
 
-    palavras=["senha","urgente","pix","bloqueado","verificar","clique aqui"]
+    palavras=["senha","urgente","pix","bloqueado","verificar"]
 
     score=0
 
     for p in palavras:
+
         if p in email.lower():
             score+=1
 
@@ -266,6 +307,7 @@ if st.button("Analisar e-mail"):
         st.success("🟢 Baixo risco")
 
     registrar("email",score,email[:100])
+
 
 # =========================
 # HISTÓRICO
@@ -278,6 +320,7 @@ if historico:
     df=pd.DataFrame(historico)
 
     st.dataframe(df)
+
 
 # =========================
 # PAINEL SOC
@@ -297,6 +340,7 @@ c1.metric("Eventos detectados",eventos)
 c2.metric("Eventos suspeitos",suspeitos)
 c3.metric("Alertas ativos",alertas)
 
+
 # =========================
 # RADAR
 # =========================
@@ -312,8 +356,9 @@ elif alertas>=1:
 else:
     st.success("🟢 Ambiente seguro")
 
+
 # =========================
-# RELATÓRIO PDF
+# RELATÓRIO
 # =========================
 
 st.header("📄 Gerar relatório")
