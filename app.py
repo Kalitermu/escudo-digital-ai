@@ -47,3 +47,36 @@ st.write("Detector de golpes + análise de IP")
 # Detector de IP
 # ======================
 
+
+# ======================
+# Mapa mundial de IP
+# ======================
+
+import folium
+from streamlit_folium import st_folium
+
+st.header("🌎 Mapa mundial de origem do IP")
+
+ip_mapa = st.text_input("Digite IP para ver no mapa", key="mapa_ip")
+
+if st.button("Mostrar no mapa", key="btn_mapa"):
+
+    try:
+        r = requests.get(f"http://ip-api.com/json/{ip_mapa}")
+        data = r.json()
+
+        lat = data["lat"]
+        lon = data["lon"]
+
+        mapa = folium.Map(location=[lat, lon], zoom_start=4)
+
+        folium.Marker(
+            [lat, lon],
+            popup=f'{data["city"]} - {data["country"]}'
+        ).add_to(mapa)
+
+        st_folium(mapa, width=700)
+
+    except:
+        st.error("Não foi possível gerar o mapa")
+
