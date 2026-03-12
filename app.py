@@ -12,7 +12,7 @@ st.write("Detector de golpes + análise de IP")
 
 st.header("🌍 Detector de localização do IP")
 
-ip = st.text_input("Digite domínio ou IP")
+ip = st.text_input("Digite domínio ou IP", key="ip_lookup_1")
 if st.button("Localizar IP"):
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
@@ -61,7 +61,7 @@ st.write("Detector de golpes + análise de IP")
 
 st.header("🌍 Detector de localização do IP")
 
-ip = st.text_input("Digite domínio ou IP")
+ip = st.text_input("Digite domínio ou IP", key="ip_lookup_2")
 if st.button("Localizar IP"):
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
@@ -160,7 +160,7 @@ import requests
 
 st.header("🌍 Detector de localização do IP")
 
-ip = st.text_input("Digite domínio ou IP", key="ip_lookup")
+ip = st.text_input("Digite domínio ou IP", key="ip_lookup_3")
 if st.button("Localizar IP"):
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
@@ -197,7 +197,7 @@ from streamlit_folium import st_folium
 
 st.header("🌍 Mapa de origem do IP")
 
-ip = st.text_input("Digite um IP ou domínio")
+ip = st.text_input("Digite um IP ou domínio", key="ip_lookup_4")
 
 if st.button("Localizar IP no mapa"):
 
