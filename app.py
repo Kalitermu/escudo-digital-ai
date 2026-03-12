@@ -13,7 +13,7 @@ st.write("Detector de golpes + análise de IP")
 st.header("🌍 Detector de localização do IP")
 
 ip = st.text_input("Digite domínio ou IP", key="ip_lookup_1")
-if st.button("Localizar IP"):
+if st.button("Localizar IP", key="btn_ip_1"):
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
         data = r.json()
@@ -62,7 +62,7 @@ st.write("Detector de golpes + análise de IP")
 st.header("🌍 Detector de localização do IP")
 
 ip = st.text_input("Digite domínio ou IP", key="ip_lookup_2")
-if st.button("Localizar IP"):
+if st.button("Localizar IP", key="btn_ip_2"):
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
         data = r.json()
@@ -161,7 +161,7 @@ import requests
 st.header("🌍 Detector de localização do IP")
 
 ip = st.text_input("Digite domínio ou IP", key="ip_lookup_3")
-if st.button("Localizar IP"):
+if st.button("Localizar IP", key="btn_ip_2"):
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
         data = r.json()
