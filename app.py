@@ -1,334 +1,369 @@
 import streamlit as st
 import requests
 import pandas as pd
-import random
 import json
 import os
+import re
 from datetime import datetime
 from PIL import Image
 import pytesseract
 from urllib.parse import urlparse
+from reportlab.pdfgen import canvas
+import tempfile
 
 st.set_page_config(page_title="Escudo Digital IA", layout="wide")
 
 st.title("🛡️ ESCUDO DIGITAL IA")
 st.write("SOC de monitoramento de golpes e análise OSINT")
 
-# =========================================
-# BANCO DE EVENTOS
-# =========================================
+ARQUIVO = "golpes_detectados.json"
 
-ARQUIVO_EVENTOS = "golpes_detectados.json"
+if not os.path.exists(ARQUIVO):
+    with open(ARQUIVO,"w") as f:
+        json.dump([],f)
 
-if not os.path.exists(ARQUIVO_EVENTOS):
-    with open(ARQUIVO_EVENTOS, "w", encoding="utf-8") as f:
-        json.dump([], f)
+def salvar_evento(tipo,conteudo,score):
 
-def salvar_evento(tipo, conteudo, score):
-    try:
-        with open(ARQUIVO_EVENTOS, "r", encoding="utf-8") as f:
-            dados = json.load(f)
-    except:
-        dados = []
+    with open(ARQUIVO,"r") as f:
+        dados = json.load(f)
 
     dados.append({
-        "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-        "tipo": tipo,
-        "conteudo": conteudo,
-        "score": score
+        "data":datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+        "tipo":tipo,
+        "conteudo":conteudo,
+        "score":score
     })
 
-    with open(ARQUIVO_EVENTOS, "w", encoding="utf-8") as f:
-        json.dump(dados, f, indent=4, ensure_ascii=False)
+    with open(ARQUIVO,"w") as f:
+        json.dump(dados,f,indent=4)
 
-def carregar_eventos():
-    try:
-        with open(ARQUIVO_EVENTOS, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except:
-        return []
+def carregar():
 
-eventos = carregar_eventos()
+    with open(ARQUIVO) as f:
+        return json.load(f)
 
-# =========================================
-# 🌍 ANÁLISE OSINT DE IP
-# =========================================
+eventos = carregar()
+
+# =====================================
+# OSINT IP
+# =====================================
 
 st.header("🌍 Análise OSINT de IP")
 
 ip = st.text_input("Digite domínio ou IP")
 
 if st.button("Analisar IP"):
+
     try:
-        r = requests.get(f"http://ip-api.com/json/{ip}", timeout=10)
+
+        r = requests.get(f"http://ip-api.com/json/{ip}")
+
         data = r.json()
 
-        if data.get("status") == "success":
+        if data["status"] == "success":
+
             st.success("IP encontrado")
 
-            col1, col2 = st.columns(2)
+            col1,col2 = st.columns(2)
 
             with col1:
-                st.write("**IP:**", data.get("query", "N/A"))
-                st.write("**País:**", data.get("country", "N/A"))
-                st.write("**Cidade:**", data.get("city", "N/A"))
-                st.write("**Região:**", data.get("regionName", "N/A"))
+                st.write("IP:",data["query"])
+                st.write("País:",data["country"])
+                st.write("Cidade:",data["city"])
 
             with col2:
-                st.write("**ISP:**", data.get("isp", "N/A"))
-                st.write("**Organização:**", data.get("org", "N/A"))
-                st.write("**ASN:**", data.get("as", "N/A"))
-                st.write("**Fuso horário:**", data.get("timezone", "N/A"))
+                st.write("ISP:",data["isp"])
+                st.write("Organização:",data["org"])
+                st.write("ASN:",data["as"])
 
             mapa = pd.DataFrame({
-                "lat": [data["lat"]],
-                "lon": [data["lon"]]
+                "lat":[data["lat"]],
+                "lon":[data["lon"]]
             })
 
-            st.subheader("📍 Localização no mapa")
             st.map(mapa)
 
-            salvar_evento(
-                "ip",
-                f'{data.get("query","")} | {data.get("country","")} | {data.get("city","")} | {data.get("org","")}',
-                10
-            )
-
-            eventos = carregar_eventos()
+            salvar_evento("ip",data["query"],10)
 
         else:
-            st.error("Não foi possível localizar o IP")
+
+            st.error("IP não encontrado")
 
     except:
-        st.error("Erro ao consultar IP")
 
-# =========================================
-# 🚨 DETECTOR DE PHISHING
-# =========================================
+        st.error("Erro na consulta")
+
+# =====================================
+# PHISHING
+# =====================================
 
 st.header("🚨 Detector de Phishing")
 
 mensagem = st.text_area("Cole mensagem ou link suspeito")
 
 if st.button("Analisar mensagem"):
+
     palavras = [
-        "pix",
-        "senha",
-        "codigo",
-        "urgente",
-        "transferencia",
-        "banco",
-        "login",
-        "verificacao",
-        "confirmar",
-        "clique aqui",
-        "atualize conta"
+        "pix","senha","codigo","urgente",
+        "transferencia","banco","login",
+        "verificacao","confirmar","clique aqui"
     ]
 
     score = 0
 
     for p in palavras:
+
         if p in mensagem.lower():
+
             score += 15
 
-    st.write("**Score de risco:**", score)
+    st.write("Score de risco:",score)
 
     if score >= 40:
-        st.error("🚨 Alto risco de golpe")
+        st.error("🚨 Alto risco")
+
     elif score >= 20:
-        st.warning("⚠️ Mensagem suspeita")
+        st.warning("⚠️ Suspeito")
+
     else:
-        st.success("🟢 Baixo risco")
+        st.success("🟢 Seguro")
 
-    salvar_evento("mensagem", mensagem[:300], score)
-    eventos = carregar_eventos()
+    salvar_evento("mensagem",mensagem,score)
 
-# =========================================
-# 🔎 SCANNER DE DOMÍNIO
-# =========================================
+# =====================================
+# DETECTOR DE LINKS
+# =====================================
+
+st.header("🔗 Detector automático de links")
+
+links = re.findall(r'https?://\S+', mensagem)
+
+if links:
+
+    for link in links:
+
+        dominio = urlparse(link).netloc
+
+        st.write("Link detectado:",dominio)
+
+        try:
+
+            r = requests.get(f"http://ip-api.com/json/{dominio}")
+
+            data = r.json()
+
+            if data["status"] == "success":
+
+                st.write("País:",data["country"])
+                st.write("ISP:",data["isp"])
+
+        except:
+
+            st.warning("Não foi possível analisar o domínio")
+
+# =====================================
+# SCANNER DOMINIO
+# =====================================
 
 st.header("🔎 Scanner de domínio")
 
-link = st.text_input("Digite URL suspeita")
+url = st.text_input("Digite URL suspeita")
 
 if st.button("Analisar domínio"):
-    try:
-        dominio = urlparse(link).netloc if "://" in link else link
 
-        r = requests.get(f"http://ip-api.com/json/{dominio}", timeout=10)
-        data = r.json()
+    dominio = urlparse(url).netloc
 
-        if data.get("status") == "success":
-            st.write("**Domínio:**", dominio)
-            st.write("**País:**", data.get("country", "N/A"))
-            st.write("**ISP:**", data.get("isp", "N/A"))
-            st.write("**ASN:**", data.get("as", "N/A"))
+    r = requests.get(f"http://ip-api.com/json/{dominio}")
 
-            score = 15
-            salvar_evento("dominio", dominio, score)
-            eventos = carregar_eventos()
+    data = r.json()
 
-        else:
-            st.error("Domínio não encontrado")
+    if data["status"] == "success":
 
-    except:
-        st.error("Erro na análise")
+        st.write("Domínio:",dominio)
+        st.write("País:",data["country"])
+        st.write("ISP:",data["isp"])
+        st.write("ASN:",data["as"])
 
-# =========================================
-# 📷 ANÁLISE DE PRINT
-# =========================================
+        salvar_evento("dominio",dominio,15)
 
-st.header("📷 Analisar print de e-mail ou WhatsApp")
+# =====================================
+# PRINT
+# =====================================
 
-imagem = st.file_uploader(
-    "Envie print suspeito",
-    type=["png", "jpg", "jpeg"]
-)
+st.header("📷 Analisar print")
 
-if imagem:
-    img = Image.open(imagem)
-    st.image(img)
+img = st.file_uploader("Envie print suspeito",type=["png","jpg","jpeg"])
+
+if img:
+
+    imagem = Image.open(img)
+
+    st.image(imagem)
 
     try:
-        texto = pytesseract.image_to_string(img)
 
-        st.subheader("Texto detectado")
+        texto = pytesseract.image_to_string(imagem)
+
+        st.write("Texto detectado")
+
         st.write(texto)
-
-        palavras = [
-            "pix",
-            "senha",
-            "codigo",
-            "urgente",
-            "transferencia",
-            "banco",
-            "login",
-            "verificacao",
-            "confirmar"
-        ]
 
         score = 0
 
-        for p in palavras:
-            if p in texto.lower():
-                score += 15
+        if "pix" in texto.lower():
 
-        st.write("**Score de risco:**", score)
+            score += 20
 
-        if score >= 40:
-            st.error("🚨 Possível golpe detectado")
-        elif score >= 20:
-            st.warning("⚠️ Conteúdo suspeito")
-        else:
-            st.success("🟢 Baixo risco")
-
-        salvar_evento("imagem", texto[:300], score)
-        eventos = carregar_eventos()
+        salvar_evento("imagem",texto,score)
 
     except:
-        st.warning("OCR não disponível no servidor")
 
-# =========================================
-# 📊 HISTÓRICO SOC
-# =========================================
+        st.warning("OCR não disponível")
+
+# =====================================
+# EMAIL
+# =====================================
+
+st.header("📧 Analisar e-mail suspeito")
+
+email = st.text_area("Cole o e-mail")
+
+if st.button("Analisar e-mail"):
+
+    score = 0
+
+    if "senha" in email.lower():
+
+        score += 20
+
+    if "pix" in email.lower():
+
+        score += 20
+
+    st.write("Score:",score)
+
+    salvar_evento("email",email,score)
+
+# =====================================
+# HISTORICO
+# =====================================
 
 st.header("📊 Histórico SOC")
 
-if eventos:
-    df = pd.DataFrame(eventos)
-    st.dataframe(df, use_container_width=True)
-else:
-    st.info("Nenhum evento registrado ainda.")
+eventos = carregar()
 
-# =========================================
-# 📈 GRÁFICO DE EVENTOS
-# =========================================
+if eventos:
+
+    df = pd.DataFrame(eventos)
+
+    st.dataframe(df)
+
+# =====================================
+# GRAFICO
+# =====================================
 
 st.header("📈 Gráfico de eventos")
 
 if eventos:
-    df_chart = pd.DataFrame(eventos)
-    resumo = df_chart["tipo"].value_counts().reset_index()
-    resumo.columns = ["Tipo", "Quantidade"]
-    st.bar_chart(resumo.set_index("Tipo"))
-else:
-    st.info("Sem dados para gráfico.")
 
-# =========================================
-# 📡 PAINEL SOC
-# =========================================
+    df = pd.DataFrame(eventos)
+
+    st.bar_chart(df["tipo"].value_counts())
+
+# =====================================
+# MAPA DE ATAQUES
+# =====================================
+
+st.header("🌎 Mapa de análises")
+
+lat = []
+lon = []
+
+for e in eventos:
+
+    if e["tipo"] == "ip":
+
+        try:
+
+            r = requests.get(f"http://ip-api.com/json/{e['conteudo']}")
+
+            d = r.json()
+
+            if d["status"] == "success":
+
+                lat.append(d["lat"])
+                lon.append(d["lon"])
+
+        except:
+
+            pass
+
+if lat:
+
+    mapa = pd.DataFrame({"lat":lat,"lon":lon})
+
+    st.map(mapa)
+
+# =====================================
+# PAINEL SOC
+# =====================================
 
 st.header("📡 Painel SOC")
 
-total_eventos = len(eventos)
-alertas_ativos = sum(1 for e in eventos if e["score"] >= 40)
-eventos_suspeitos = sum(1 for e in eventos if e["score"] >= 20)
+col1,col2,col3 = st.columns(3)
 
-col1, col2, col3 = st.columns(3)
+col1.metric("Eventos detectados",len(eventos))
 
-col1.metric("Eventos detectados", total_eventos)
-col2.metric("Eventos suspeitos", eventos_suspeitos)
-col3.metric("Alertas ativos", alertas_ativos)
+col2.metric("Suspeitos",sum(e["score"]>20 for e in eventos))
 
-# =========================================
-# 🛰️ RADAR DE AMEAÇA
-# =========================================
+col3.metric("Alertas ativos",sum(e["score"]>40 for e in eventos))
+
+# =====================================
+# RADAR
+# =====================================
 
 st.header("🛰️ Radar de ameaça")
 
-if total_eventos == 0:
-    nivel = 10
-else:
-    media_score = sum(e["score"] for e in eventos) / total_eventos
-    nivel = min(100, int(media_score * 2))
+nivel = min(100,sum(e["score"] for e in eventos))
 
 st.progress(nivel)
 
 if nivel > 70:
+
     st.error("🚨 Nível alto de ameaça")
+
 elif nivel > 40:
+
     st.warning("⚠️ Atividade suspeita")
+
 else:
+
     st.success("🟢 Ambiente seguro")
-    # ==============================
-# 📧 ANALISADOR DE E-MAIL
-# ==============================
 
-st.header("📧 Analisar e-mail suspeito")
+# =====================================
+# RELATORIO PDF
+# =====================================
 
-email_texto = st.text_area("Cole o conteúdo do e-mail")
+st.header("📁 Exportar relatório")
 
-if st.button("Analisar e-mail"):
+if st.button("Gerar relatório SOC"):
 
-    palavras = [
-        "pix",
-        "senha",
-        "codigo",
-        "urgente",
-        "transferencia",
-        "banco",
-        "login",
-        "verificacao",
-        "confirmar",
-        "clique aqui",
-        "sua conta foi bloqueada"
-    ]
+    with tempfile.NamedTemporaryFile(delete=False,suffix=".pdf") as tmp:
 
-    score = 0
+        c = canvas.Canvas(tmp.name)
 
-    for p in palavras:
-        if p in email_texto.lower():
-            score += 15
+        c.drawString(50,800,"ESCUDO DIGITAL IA - Relatório SOC")
 
-    st.write("Score de risco:", score)
+        y = 760
 
-    if score >= 40:
-        st.error("🚨 E-mail possivelmente fraudulento")
+        for e in eventos[-10:]:
 
-    elif score >= 20:
-        st.warning("⚠️ E-mail suspeito")
+            c.drawString(50,y,f"{e['data']} | {e['tipo']} | score:{e['score']}")
 
-    else:
-        st.success("🟢 E-mail aparentemente seguro")
+            y -= 20
 
-    salvar_evento("email", email_texto[:300], score)
+        c.save()
+
+        with open(tmp.name,"rb") as f:
+
+            st.download_button("Baixar PDF",f,file_name="relatorio_soc.pdf")
