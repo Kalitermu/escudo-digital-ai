@@ -46,7 +46,7 @@ if st.button("Localizar IP", key="btn_ip_1"):
 
 st.header("🧠 Detector de golpe")
 
-texto = st.text_area("Cole a mensagem suspeita")
+texto = st.text_area("Cole a mensagem suspeita", key="msg_1")
 import streamlit as st
 import requests
 
@@ -110,7 +110,7 @@ if st.button("Localizar IP", key="btn_ip_2"):
 
 st.header("🧠 Detector de golpe")
 
-texto = st.text_area("Cole a mensagem suspeita")
+texto = st.text_area("Cole a mensagem suspeita", key="msg_2")
 
 if st.button("Analisar mensagem"):
 
