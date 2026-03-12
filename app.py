@@ -20,59 +20,54 @@ st.set_page_config(page_title="Escudo Digital IA",layout="wide")
 
 
 # =========================
-# ESTILO VISUAL MELHORADO
+# TEMA MAIS SUAVE
 # =========================
 
 st.markdown("""
 <style>
 
 .stApp{
-background: linear-gradient(135deg,#0f172a,#1e3a5f);
-color:white;
-}
-
-p,span,label,div{
-color:white !important;
+background: linear-gradient(135deg,#e8f0f7,#cfe3f5);
+color:#0f172a;
 }
 
 h1,h2,h3{
-color:#00ffa6;
-text-shadow:0 0 5px #00ffa6;
+color:#0ea5e9;
 }
 
 /* Inputs */
 
 input{
-background:#f1f5f9 !important;
+background:white !important;
 color:black !important;
 border-radius:8px !important;
 }
 
-/* Textarea */
+/* textarea */
 
 textarea{
-background:#f1f5f9 !important;
+background:white !important;
 color:black !important;
 }
 
-/* Botões */
+/* botões */
 
 .stButton>button{
-background:linear-gradient(90deg,#00ffa6,#00bfff);
-border-radius:12px;
-color:black;
+background:linear-gradient(90deg,#0ea5e9,#38bdf8);
+border-radius:10px;
+color:white;
 font-weight:bold;
 }
 
 /* métricas */
 
 [data-testid="stMetricValue"]{
-color:white !important;
+color:#0f172a !important;
 font-size:30px;
 }
 
 [data-testid="stMetricLabel"]{
-color:#a7f3d0 !important;
+color:#0369a1 !important;
 }
 
 </style>
@@ -115,12 +110,14 @@ def registrar(tipo,score,detalhe=""):
         json.dump(historico,f)
 
 
-def registrar_ip(ip,lat,lon):
+def registrar_ip(ip,lat,lon,pais,isp):
 
     mapa_ips.append({
         "ip":ip,
         "lat":lat,
-        "lon":lon
+        "lon":lon,
+        "pais":pais,
+        "isp":isp
     })
 
     with open("mapa_ips.json","w") as f:
@@ -141,12 +138,16 @@ if st.button("Analisar IP"):
 
         r=requests.get(f"http://ip-api.com/json/{ip}").json()
 
+        pais=r.get("country")
+        cidade=r.get("city")
+        isp=r.get("isp")
+
         st.success("Consulta realizada")
 
         st.write("IP:",ip)
-        st.write("País:",r.get("country"))
-        st.write("Cidade:",r.get("city"))
-        st.write("ISP:",r.get("isp"))
+        st.write("País:",pais)
+        st.write("Cidade:",cidade)
+        st.write("ISP:",isp)
         st.write("ASN:",r.get("as"))
 
         registrar("ip",1,ip)
@@ -156,7 +157,7 @@ if st.button("Analisar IP"):
 
         if lat and lon:
 
-            registrar_ip(ip,lat,lon)
+            registrar_ip(ip,lat,lon,pais,isp)
 
             mapa=folium.Map(
                 location=[lat,lon],
@@ -165,7 +166,12 @@ if st.button("Analisar IP"):
 
             folium.Marker(
                 [lat,lon],
-                tooltip=ip
+                popup=f"""
+                IP: {ip}<br>
+                País: {pais}<br>
+                ISP: {isp}
+                """,
+                tooltip="Clique para ver detalhes"
             ).add_to(mapa)
 
             st.subheader("🌍 Origem do IP")
@@ -192,7 +198,12 @@ if mapa_ips:
             location=[ip["lat"],ip["lon"]],
             radius=6,
             color="red",
-            fill=True
+            fill=True,
+            popup=f"""
+            IP: {ip['ip']}<br>
+            País: {ip['pais']}<br>
+            ISP: {ip['isp']}
+            """
         ).add_to(mapa_global)
 
     st_folium(mapa_global,width=900,height=500)
@@ -211,7 +222,7 @@ if st.button("Analisar mensagem"):
     palavras=[
         "pix","senha","urgente",
         "banco","login","clique",
-        "transferência","verificação"
+        "transferência"
     ]
 
     score=0
@@ -221,92 +232,16 @@ if st.button("Analisar mensagem"):
         if p in msg.lower():
             score+=1
 
-    if score>=4:
+    if score>=3:
         st.error("🚨 Alto risco de golpe")
 
-    elif score>=2:
+    elif score>=1:
         st.warning("⚠️ Mensagem suspeita")
 
     else:
         st.success("🟢 Baixo risco")
 
     registrar("mensagem",score,msg[:100])
-
-
-# =========================
-# DOMÍNIO
-# =========================
-
-st.header("🔎 Scanner de domínio")
-
-dominio=st.text_input("Digite URL suspeita")
-
-if st.button("Scanner domínio"):
-
-    try:
-
-        r=requests.get(f"http://ip-api.com/json/{dominio}").json()
-
-        st.write("País:",r.get("country"))
-        st.write("ISP:",r.get("isp"))
-        st.write("ASN:",r.get("as"))
-
-        registrar("dominio",1,dominio)
-
-    except:
-        st.error("Erro")
-
-
-# =========================
-# OCR
-# =========================
-
-st.header("📷 Analisar print de e-mail ou WhatsApp")
-
-file=st.file_uploader("Envie print suspeito")
-
-if file:
-
-    image=Image.open(file)
-
-    st.image(image)
-
-    if OCR_OK:
-
-        texto=pytesseract.image_to_string(image)
-
-        st.subheader("Texto detectado")
-
-        st.write(texto)
-
-        registrar("imagem",1,texto[:100])
-
-
-# =========================
-# EMAIL
-# =========================
-
-st.header("📧 Analisar e-mail suspeito")
-
-email=st.text_area("Cole o conteúdo do e-mail")
-
-if st.button("Analisar e-mail"):
-
-    palavras=["senha","urgente","pix","bloqueado","verificar"]
-
-    score=0
-
-    for p in palavras:
-
-        if p in email.lower():
-            score+=1
-
-    if score>=2:
-        st.error("🚨 Email suspeito")
-    else:
-        st.success("🟢 Baixo risco")
-
-    registrar("email",score,email[:100])
 
 
 # =========================
