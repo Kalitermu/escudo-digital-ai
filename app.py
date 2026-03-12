@@ -14,22 +14,18 @@ st.header("🌍 Detector de localização do IP")
 
 ip = st.text_input("Digite domínio ou IP", key="ip_lookup_1")
 if st.button("Localizar IP", key="btn_ip_1"):
-    try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
         data = r.json()
         st.write("Organização:", data["org"])
-    except:
         st.error("Não foi possível localizar o IP")
 
 
-    try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
         data = r.json()
 
         st.write("Cidade:", data["city"])
         st.write("Organização:", data["org"])
 
-    except:
         st.error("Não foi possível localizar o IP")
 
 # ======================
@@ -55,7 +51,6 @@ st.header("🌍 Detector de localização do IP")
 
 ip = st.text_input("Digite domínio ou IP", key="ip_lookup_2")
 if st.button("Localizar IP", key="btn_ip_2"):
-    try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
 
 # ======================
@@ -68,7 +63,6 @@ ip = st.text_input("Digite domínio ou IP", key="ip_lookup")
 
 if st.button("Localizar IP", key="btn_ip"):
 
-    try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
         data = r.json()
 
@@ -78,6 +72,28 @@ if st.button("Localizar IP", key="btn_ip"):
         st.write("Cidade:", data["city"])
         st.write("Organização:", data["org"])
 
-    except:
+        st.error("Não foi possível localizar o IP")
+
+
+# ======================
+# Detector de localização do IP
+# ======================
+
+st.header("🌍 Detector de localização do IP")
+
+ip = st.text_input("Digite domínio ou IP", key="ip_lookup")
+
+if st.button("Localizar IP", key="btn_ip"):
+
+    r = requests.get(f"http://ip-api.com/json/{ip}")
+    data = r.json()
+
+    if data["status"] == "success":
+        st.success("IP encontrado")
+        st.write("IP:", data["query"])
+        st.write("País:", data["country"])
+        st.write("Cidade:", data["city"])
+        st.write("Organização:", data["org"])
+    else:
         st.error("Não foi possível localizar o IP")
 
