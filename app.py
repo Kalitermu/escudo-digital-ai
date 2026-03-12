@@ -12,51 +12,58 @@ from streamlit_folium import st_folium
 
 try:
     import pytesseract
-    OCR_OK = True
+    OCR_OK=True
 except:
-    OCR_OK = False
+    OCR_OK=False
 
-st.set_page_config(page_title="Escudo Digital IA", layout="wide")
+st.set_page_config(page_title="Escudo Digital IA",layout="wide")
 
 # =========================
-# TEMA MAIS SUAVE
+# TEMA AZUL ANIL SUAVE
 # =========================
 
 st.markdown("""
 <style>
+
 .stApp{
-    background: linear-gradient(135deg,#eef6ff,#dbeafe);
-    color:#0f172a;
+background: linear-gradient(135deg,#e8f1ff,#cfe0ff);
+color:#0f172a;
 }
+
 h1,h2,h3{
-    color:#0284c7;
+color:#1d4ed8;
 }
+
 p,span,label,div{
-    color:#0f172a !important;
+color:#0f172a !important;
 }
+
 input{
-    background:white !important;
-    color:black !important;
-    border-radius:8px !important;
+background:white !important;
+color:black !important;
 }
+
 textarea{
-    background:white !important;
-    color:black !important;
+background:white !important;
+color:black !important;
 }
+
 .stButton>button{
-    background:linear-gradient(90deg,#38bdf8,#0ea5e9);
-    border-radius:12px;
-    color:white;
-    font-weight:bold;
-    border:none;
+background:linear-gradient(90deg,#3b82f6,#2563eb);
+border-radius:12px;
+color:white;
+font-weight:bold;
 }
+
 [data-testid="stMetricValue"]{
-    color:#0f172a !important;
-    font-size:30px;
+color:#0f172a !important;
+font-size:30px;
 }
+
 [data-testid="stMetricLabel"]{
-    color:#0369a1 !important;
+color:#1e40af !important;
 }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -64,106 +71,77 @@ st.title("🛡️ ESCUDO DIGITAL IA")
 st.subheader("SOC de monitoramento de golpes e análise OSINT")
 
 # =========================
-# BASES
+# BASE DE DADOS
 # =========================
 
 try:
-    with open("historico.json", "r", encoding="utf-8") as f:
-        historico = json.load(f)
+    with open("historico.json","r") as f:
+        historico=json.load(f)
 except:
-    historico = []
+    historico=[]
 
 try:
-    with open("mapa_ips.json", "r", encoding="utf-8") as f:
-        mapa_ips = json.load(f)
+    with open("mapa_ips.json","r") as f:
+        mapa_ips=json.load(f)
 except:
-    mapa_ips = []
+    mapa_ips=[]
 
-sites_legitimos = [
-    "google.com",
-    "facebook.com",
-    "instagram.com",
-    "paypal.com",
-    "amazon.com",
-    "bradesco.com.br",
-    "itau.com.br",
-    "nubank.com.br",
-    "mercadolivre.com.br",
-    "gov.br"
-]
+def salvar(nome,dados):
+    with open(nome,"w") as f:
+        json.dump(dados,f)
 
-palavras_phishing = [
-    "login",
-    "secure",
-    "verify",
-    "update",
-    "account",
-    "confirm",
-    "senha",
-    "pix",
-    "urgente",
-    "banco",
-    "clique aqui",
-    "verificação",
-    "código",
-    "bloqueado"
-]
-
-def salvar_json(nome_arquivo, dados):
-    with open(nome_arquivo, "w", encoding="utf-8") as f:
-        json.dump(dados, f, ensure_ascii=False, indent=2)
-
-def registrar(tipo, score, detalhe=""):
-    evento = {
-        "data": str(datetime.datetime.now()),
-        "tipo": tipo,
-        "score": score,
-        "detalhe": detalhe
+def registrar(tipo,score,detalhe=""):
+    evento={
+        "data":str(datetime.datetime.now()),
+        "tipo":tipo,
+        "score":score,
+        "detalhe":detalhe
     }
     historico.append(evento)
-    salvar_json("historico.json", historico)
+    salvar("historico.json",historico)
 
-def registrar_ip(ip, lat, lon, pais, isp):
-    registro = {
-        "ip": ip,
-        "lat": lat,
-        "lon": lon,
-        "pais": pais,
-        "isp": isp
+def registrar_ip(ip,lat,lon,pais,isp):
+    registro={
+        "ip":ip,
+        "lat":lat,
+        "lon":lon,
+        "pais":pais,
+        "isp":isp
     }
     mapa_ips.append(registro)
-    salvar_json("mapa_ips.json", mapa_ips)
+    salvar("mapa_ips.json",mapa_ips)
 
-def detectar_dominio_falso(url):
-    risco = 0
-    url = url.lower().strip()
+# =========================
+# DETECTOR DOMÍNIO FALSO
+# =========================
 
-    for p in palavras_phishing:
-        if p in url:
-            risco += 1
+sites_legitimos=[
+"google.com",
+"facebook.com",
+"instagram.com",
+"paypal.com",
+"amazon.com",
+"bradesco.com.br",
+"itau.com.br",
+"nubank.com.br"
+]
+
+def detectar_dominio(url):
+
+    risco=0
+
+    palavras=["login","secure","verify","update","account"]
+
+    for p in palavras:
+        if p in url.lower():
+            risco+=1
 
     for site in sites_legitimos:
-        similaridade = difflib.SequenceMatcher(None, url, site).ratio()
-        if similaridade > 0.60 and url != site:
-            risco += 2
+        similaridade=difflib.SequenceMatcher(None,url,site).ratio()
+        if similaridade>0.6 and url!=site:
+            risco+=2
 
     return risco
-
-def score_texto(texto):
-    score = 0
-    texto = texto.lower()
-
-    chaves = [
-        "pix", "senha", "urgente", "banco", "login",
-        "clique", "transferência", "verificação",
-        "código", "bloqueado", "confirme"
-    ]
-
-    for p in chaves:
-        if p in texto:
-            score += 1
-
-    return score
 
 # =========================
 # OSINT IP
@@ -171,50 +149,44 @@ def score_texto(texto):
 
 st.header("🌍 Análise OSINT de IP")
 
-ip = st.text_input("Digite domínio ou IP")
+ip=st.text_input("Digite domínio ou IP")
 
 if st.button("Analisar IP"):
+
     try:
-        r = requests.get(f"http://ip-api.com/json/{ip}", timeout=10).json()
 
-        pais = r.get("country")
-        cidade = r.get("city")
-        isp = r.get("isp")
-        asn = r.get("as")
-        lat = r.get("lat")
-        lon = r.get("lon")
+        r=requests.get(f"http://ip-api.com/json/{ip}").json()
 
-        if r.get("status") == "success":
-            st.success("Consulta realizada")
-            c1, c2 = st.columns(2)
+        pais=r.get("country")
+        cidade=r.get("city")
+        isp=r.get("isp")
+        asn=r.get("as")
+        lat=r.get("lat")
+        lon=r.get("lon")
 
-            with c1:
-                st.write("**IP:**", ip)
-                st.write("**País:**", pais)
-                st.write("**Cidade:**", cidade)
+        st.success("Consulta realizada")
 
-            with c2:
-                st.write("**ISP:**", isp)
-                st.write("**ASN:**", asn)
-                st.write("**Organização:**", r.get("org"))
+        st.write("IP:",ip)
+        st.write("País:",pais)
+        st.write("Cidade:",cidade)
+        st.write("ISP:",isp)
+        st.write("ASN:",asn)
 
-            registrar("ip", 1, ip)
+        registrar("ip",1,ip)
 
-            if lat and lon:
-                registrar_ip(ip, lat, lon, pais, isp)
+        if lat and lon:
 
-                st.subheader("🌍 Origem do IP")
+            registrar_ip(ip,lat,lon,pais,isp)
 
-                mapa = folium.Map(location=[lat, lon], zoom_start=4)
-                folium.Marker(
-                    [lat, lon],
-                    popup=f"IP: {ip}<br>País: {pais}<br>ISP: {isp}",
-                    tooltip="Clique para ver detalhes"
-                ).add_to(mapa)
+            mapa=folium.Map(location=[lat,lon],zoom_start=4)
 
-                st_folium(mapa, width=700, height=450)
-        else:
-            st.error("Não foi possível localizar o IP")
+            folium.Marker(
+                [lat,lon],
+                popup=f"IP: {ip}<br>País: {pais}<br>ISP: {isp}",
+                tooltip="Clique para detalhes"
+            ).add_to(mapa)
+
+            st_folium(mapa,width=700,height=450)
 
     except:
         st.error("Erro na consulta")
@@ -226,129 +198,134 @@ if st.button("Analisar IP"):
 st.header("🌎 Radar global de ameaças")
 
 if mapa_ips:
-    mapa_global = folium.Map(location=[0, 0], zoom_start=2)
+
+    mapa_global=folium.Map(location=[0,0],zoom_start=2)
 
     for item in mapa_ips:
-        folium.CircleMarker(
-            location=[item["lat"], item["lon"]],
-            radius=6,
-            color="red",
-            fill=True,
-            popup=f"IP: {item['ip']}<br>País: {item['pais']}<br>ISP: {item['isp']}"
-        ).add_to(mapa_global)
 
-    st_folium(mapa_global, width=900, height=500)
+        ip=item.get("ip","?")
+        pais=item.get("pais","desconhecido")
+        isp=item.get("isp","desconhecido")
+        lat=item.get("lat")
+        lon=item.get("lon")
+
+        if lat and lon:
+
+            folium.CircleMarker(
+                location=[lat,lon],
+                radius=6,
+                color="red",
+                fill=True,
+                popup=f"IP: {ip}<br>País: {pais}<br>ISP: {isp}"
+            ).add_to(mapa_global)
+
+    st_folium(mapa_global,width=900,height=500)
 
 # =========================
-# PHISHING
+# DETECTOR PHISHING
 # =========================
 
 st.header("🚨 Detector de Phishing")
 
-msg = st.text_area("Cole mensagem ou link suspeito")
+msg=st.text_area("Cole mensagem ou link suspeito")
 
 if st.button("Analisar mensagem"):
-    score = score_texto(msg)
 
-    if score >= 4:
+    palavras=[
+    "pix","senha","urgente","banco",
+    "login","clique","transferência",
+    "verificação","código"
+    ]
+
+    score=0
+
+    for p in palavras:
+        if p in msg.lower():
+            score+=1
+
+    if score>=4:
         st.error("🚨 Alto risco de golpe")
-    elif score >= 2:
+
+    elif score>=2:
         st.warning("⚠️ Mensagem suspeita")
+
     else:
         st.success("🟢 Baixo risco")
 
-    st.write("**Score:**", score)
-    registrar("mensagem", score, msg[:150])
+    registrar("mensagem",score,msg[:100])
 
 # =========================
-# DOMÍNIO
+# SCANNER DOMÍNIO
 # =========================
 
 st.header("🔎 Scanner de domínio")
 
-dominio = st.text_input("Digite URL suspeita")
+dominio=st.text_input("Digite URL suspeita")
 
-if st.button("Scanner domínio"):
-    try:
-        r = requests.get(f"http://ip-api.com/json/{dominio}", timeout=10).json()
+if st.button("Analisar domínio"):
 
-        st.write("**Domínio:**", dominio)
-        st.write("**País:**", r.get("country"))
-        st.write("**ISP:**", r.get("isp"))
-        st.write("**ASN:**", r.get("as"))
+    score=detectar_dominio(dominio)
 
-        score_dom = detectar_dominio_falso(dominio)
+    if score>=3:
+        st.error("🚨 Domínio muito suspeito")
 
-        if score_dom >= 3:
-            st.error("🚨 Domínio muito suspeito / parecido com site legítimo")
-        elif score_dom >= 1:
-            st.warning("⚠️ Domínio suspeito")
-        else:
-            st.success("🟢 Domínio aparentemente seguro")
+    elif score>=1:
+        st.warning("⚠️ Domínio suspeito")
 
-        st.write("**Score do domínio:**", score_dom)
+    else:
+        st.success("🟢 Domínio aparentemente seguro")
 
-        registrar("dominio", score_dom if score_dom > 0 else 1, dominio)
-
-    except:
-        st.error("Erro")
+    registrar("dominio",score,dominio)
 
 # =========================
-# PRINT
+# OCR PRINT
 # =========================
 
-st.header("📷 Analisar print de e-mail ou WhatsApp")
+st.header("📷 Analisar print de golpe")
 
-file = st.file_uploader("Envie print suspeito", type=["png", "jpg", "jpeg"])
+file=st.file_uploader("Envie print",type=["png","jpg","jpeg"])
 
 if file:
-    image = Image.open(file)
+
+    image=Image.open(file)
+
     st.image(image)
 
     if OCR_OK:
-        try:
-            texto = pytesseract.image_to_string(image)
 
-            st.subheader("Texto detectado")
-            st.write(texto)
+        texto=pytesseract.image_to_string(image)
 
-            score = score_texto(texto)
+        st.subheader("Texto detectado")
 
-            if score >= 4:
-                st.error("🚨 Possível golpe detectado")
-            elif score >= 2:
-                st.warning("⚠️ Conteúdo suspeito")
-            else:
-                st.success("🟢 Baixo risco")
+        st.write(texto)
 
-            st.write("**Score:**", score)
-            registrar("imagem", score if score > 0 else 1, texto[:150])
-
-        except:
-            st.warning("OCR não disponível")
-    else:
-        st.warning("OCR não disponível no servidor")
+        registrar("imagem",1,texto[:100])
 
 # =========================
 # EMAIL
 # =========================
 
-st.header("📧 Analisar e-mail suspeito")
+st.header("📧 Analisar email suspeito")
 
-email = st.text_area("Cole o conteúdo do e-mail")
+email=st.text_area("Cole o conteúdo do email")
 
-if st.button("Analisar e-mail"):
-    score = score_texto(email)
+if st.button("Analisar email"):
 
-    if score >= 4:
-        st.error("🚨 E-mail suspeito")
-    elif score >= 2:
-        st.warning("⚠️ E-mail com sinais de risco")
+    palavras=["senha","urgente","pix","bloqueado"]
+
+    score=0
+
+    for p in palavras:
+        if p in email.lower():
+            score+=1
+
+    if score>=2:
+        st.error("🚨 Email suspeito")
+
     else:
         st.success("🟢 Baixo risco")
 
-    st.write("**Score:**", score)
-    registrar("email", score, email[:150])
+    registrar("email",score,email[:100])
 
 # =========================
 # HISTÓRICO
@@ -357,25 +334,28 @@ if st.button("Analisar e-mail"):
 st.header("📊 Histórico SOC")
 
 if historico:
-    df = pd.DataFrame(historico)
-    st.dataframe(df, use_container_width=True)
-else:
-    st.info("Nenhum evento registrado ainda.")
+
+    df=pd.DataFrame(historico)
+
+    st.dataframe(df)
 
 # =========================
-# PAINEL
+# PAINEL SOC
 # =========================
 
 st.header("📡 Painel SOC")
 
-eventos = len(historico)
-suspeitos = len([e for e in historico if e.get("score", 0) >= 2])
-alertas = len([e for e in historico if e.get("score", 0) >= 4])
+eventos=len(historico)
 
-c1, c2, c3 = st.columns(3)
-c1.metric("Eventos detectados", eventos)
-c2.metric("Eventos suspeitos", suspeitos)
-c3.metric("Alertas ativos", alertas)
+suspeitos=len([e for e in historico if e.get("score",0)>=2])
+
+alertas=suspeitos
+
+c1,c2,c3=st.columns(3)
+
+c1.metric("Eventos detectados",eventos)
+c2.metric("Eventos suspeitos",suspeitos)
+c3.metric("Alertas ativos",alertas)
 
 # =========================
 # RADAR
@@ -383,10 +363,12 @@ c3.metric("Alertas ativos", alertas)
 
 st.header("🛰️ Radar de ameaça")
 
-if alertas >= 5:
+if alertas>=5:
     st.error("🚨 Nível alto de ameaça")
-elif alertas >= 1:
+
+elif alertas>=1:
     st.warning("⚠️ Atividade suspeita")
+
 else:
     st.success("🟢 Ambiente seguro")
 
@@ -397,17 +379,24 @@ else:
 st.header("📄 Gerar relatório")
 
 if st.button("Gerar relatório PDF"):
-    buffer = io.BytesIO()
-    c = canvas.Canvas(buffer)
 
-    y = 800
-    c.drawString(50, y, "Relatório Escudo Digital IA")
-    y -= 40
+    buffer=io.BytesIO()
+
+    c=canvas.Canvas(buffer)
+
+    y=800
+
+    c.drawString(50,y,"Relatório Escudo Digital IA")
+
+    y-=40
 
     for e in historico:
-        linha = f"{e.get('data')} | {e.get('tipo')} | score:{e.get('score')}"
-        c.drawString(50, y, linha)
-        y -= 20
+
+        linha=f"{e.get('data')} | {e.get('tipo')} | score:{e.get('score')}"
+
+        c.drawString(50,y,linha)
+
+        y-=20
 
     c.save()
 
