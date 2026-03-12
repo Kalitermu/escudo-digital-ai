@@ -1,4 +1,19 @@
 import streamlit as st
+st.markdown("""
+<style>
+h1,h2,h3 {
+color:#00ffa6;
+text-shadow:0 0 5px #00ffa6,0 0 10px #00ffa6,0 0 20px #00ffa6;
+}
+.stButton>button {
+background:linear-gradient(90deg,#00ffa6,#00bfff);
+border-radius:12px;
+color:black;
+font-weight:bold;
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 st.markdown("""
 
