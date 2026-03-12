@@ -146,3 +146,41 @@ st.header("📜 Histórico de IP analisados")
 for h in st.session_state.historico_ip:
     st.write("•", h)
 
+
+# ======================
+# Relatório SOC
+# ======================
+
+st.header("📄 Relatório de análise")
+
+if st.button
+
+# ======================
+# Relatório SOC
+# ======================
+
+st.header("📄 Relatório de análise")
+
+if st.button("Gerar relatório SOC"):
+
+    st.write("### Resultado da análise")
+
+    st.write("IP analisado:", ip)
+
+    if "data" in locals():
+        if data["status"] == "success":
+            st.write("País:", data["country"])
+            st.write("Cidade:", data["city"])
+            st.write("Organização:", data["org"])
+
+    st.write("Nível de ameaça:", nivel)
+
+    if nivel > 75:
+        st.write("Classificação: 🚨 ALTA AMEAÇA")
+
+    elif nivel > 40:
+        st.write("Classificação: ⚠️ ATIVIDADE SUSPEITA")
+
+    else:
+        st.write("Classificação: 🟢 NORMAL")
+
