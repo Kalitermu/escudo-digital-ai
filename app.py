@@ -17,10 +17,6 @@ if st.button("Localizar IP", key="btn_ip_1"):
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
         data = r.json()
-        st.success("IP encontrado")
-        st.write("IP:", data["query"])
-        st.write("País:", data["country"])
-        st.write("Cidade:", data["city"])
         st.write("Organização:", data["org"])
     except:
         st.error("Não foi possível localizar o IP")
@@ -30,10 +26,6 @@ if st.button("Localizar IP", key="btn_ip_1"):
         r = requests.get(f"http://ip-api.com/json/{ip}")
         data = r.json()
 
-        st.success("IP encontrado")
-
-        st.write("IP:", data["query"])
-        st.write("País:", data["country"])
         st.write("Cidade:", data["city"])
         st.write("Organização:", data["org"])
 
@@ -66,10 +58,6 @@ if st.button("Localizar IP", key="btn_ip_2"):
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}")
         data = r.json()
-        st.success("IP encontrado")
-        st.write("IP:", data["query"])
-        st.write("País:", data["country"])
-        st.write("Cidade:", data["city"])
         st.write("Organização:", data["org"])
     except:
         st.error("Não foi possível localizar o IP")
@@ -79,10 +67,6 @@ if st.button("Localizar IP", key="btn_ip_2"):
         r = requests.get(f"http://ip-api.com/json/{ip}")
         data = r.json()
 
-        st.success("IP encontrado")
-
-        st.write("IP:", data["query"])
-        st.write("País:", data["country"])
         st.write("Cidade:", data["city"])
         st.write("Organização:", data["org"])
 
@@ -94,4 +78,3 @@ if st.button("Localizar IP", key="btn_ip_2"):
         r = requests.get(f"http://ip-api.com/json/{ip}")
         data = r.json()
 
-        st.success("IP encontrado")
