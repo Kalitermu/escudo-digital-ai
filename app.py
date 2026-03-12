@@ -1,3 +1,6 @@
+
+import streamlit as st
+
 # ======================
 # Relatório SOC
 # ======================
@@ -7,6 +10,8 @@ st.header("📄 Relatório de análise")
 if st.button("Gerar relatório SOC"):
 
     st.write("### Resultado da análise")
+
+    ip = "N/A"
 
     st.write("IP analisado:", ip)
 
