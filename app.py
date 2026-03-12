@@ -5,15 +5,14 @@ import json
 import datetime
 import io
 from PIL import Image
+from reportlab.pdfgen import canvas
 
-# opcional: OCR
 try:
     import pytesseract
     OCR_OK = True
 except:
     OCR_OK = False
 
-# opcional: mapa
 try:
     import folium
     from streamlit_folium import st_folium
@@ -21,15 +20,45 @@ try:
 except:
     MAP_OK = False
 
-from reportlab.pdfgen import canvas
+
+# ======================
+# CONFIG
+# ======================
 
 st.set_page_config(page_title="Escudo Digital IA", layout="wide")
+
+# ======================
+# ESTILO CYBER
+# ======================
+
+st.markdown("""
+<style>
+
+.stApp {
+background: linear-gradient(135deg,#020617,#0f172a);
+color:white;
+}
+
+h1,h2,h3 {
+color:#00ffa6;
+text-shadow:0 0 10px #00ffa6;
+}
+
+.stButton>button {
+background: linear-gradient(90deg,#00ffa6,#00bfff);
+border-radius:12px;
+color:black;
+font-weight:bold;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 st.title("🛡️ ESCUDO DIGITAL IA")
 st.subheader("SOC de monitoramento de golpes e análise OSINT")
 
 # ======================
-# carregar banco SOC
+# carregar histórico
 # ======================
 
 try:
@@ -38,26 +67,22 @@ try:
 except:
     historico = []
 
-def registrar(tipo, score, detalhe=""):
+def registrar(tipo,score,detalhe=""):
+
     evento = {
         "data": str(datetime.datetime.now()),
         "tipo": tipo,
         "score": score,
         "detalhe": detalhe
     }
+
     historico.append(evento)
+
     with open("historico.json","w") as f:
         json.dump(historico,f)
 
 # ======================
-# Threat Score
-# ======================
-
-def threat_score(score):
-    return min(score * 20, 100)
-
-# ======================
-# OSINT IP
+# IP OSINT
 # ======================
 
 st.header("🌍 Análise OSINT de IP")
@@ -79,16 +104,28 @@ if st.button("Analisar IP"):
         registrar("ip",1,ip)
 
         if MAP_OK and r.get("lat"):
-            mapa = folium.Map(location=[r["lat"], r["lon"]], zoom_start=4)
-            folium.Marker([r["lat"], r["lon"]]).add_to(mapa)
+
+            mapa = folium.Map(
+                location=[r["lat"], r["lon"]],
+                zoom_start=4,
+                width=700,
+                height=400
+            )
+
+            folium.Marker(
+                [r["lat"], r["lon"]],
+                tooltip=ip
+            ).add_to(mapa)
+
             st.subheader("🗺️ Origem do IP")
-            st_folium(mapa)
+
+            st_folium(mapa,width=700,height=400)
 
     except:
         st.error("Erro na consulta")
 
 # ======================
-# Detector de phishing
+# PHISHING
 # ======================
 
 st.header("🚨 Detector de Phishing")
@@ -98,14 +135,15 @@ msg = st.text_area("Cole mensagem ou link suspeito")
 if st.button("Analisar mensagem"):
 
     palavras = [
-        "pix","urgente","senha","banco",
-        "clique","verificar","login",
+        "pix","senha","urgente",
+        "banco","login","clique",
         "transferência","código"
     ]
 
     score = 0
 
     for p in palavras:
+
         if p in msg.lower():
             score += 1
 
@@ -121,7 +159,7 @@ if st.button("Analisar mensagem"):
     registrar("mensagem",score,msg[:80])
 
 # ======================
-# Scanner domínio
+# DOMÍNIO
 # ======================
 
 st.header("🔎 Scanner de domínio")
@@ -145,7 +183,7 @@ if st.button("Scanner domínio"):
         st.error("Erro")
 
 # ======================
-# OCR de print
+# PRINT
 # ======================
 
 st.header("📷 Analisar print de e-mail ou WhatsApp")
@@ -155,22 +193,21 @@ file = st.file_uploader("Envie print suspeito")
 if file:
 
     image = Image.open(file)
+
     st.image(image)
 
-    texto_extraido = ""
-
     if OCR_OK:
-        try:
-            texto_extraido = pytesseract.image_to_string(image)
-            st.subheader("Texto detectado")
-            st.write(texto_extraido)
 
-            registrar("imagem",1,texto_extraido[:80])
-        except:
-            st.warning("OCR não disponível")
+        texto = pytesseract.image_to_string(image)
+
+        st.subheader("Texto detectado")
+
+        st.write(texto)
+
+        registrar("imagem",1,texto[:80])
 
 # ======================
-# Análise de e-mail
+# EMAIL
 # ======================
 
 st.header("📧 Analisar e-mail suspeito")
@@ -180,26 +217,26 @@ email = st.text_area("Cole o conteúdo do e-mail")
 if st.button("Analisar e-mail"):
 
     palavras = [
-        "senha","urgente","bloqueado",
-        "pix","verificar","login"
+        "senha","urgente","pix",
+        "bloqueado","verificar"
     ]
 
     score = 0
 
     for p in palavras:
+
         if p in email.lower():
             score += 1
 
     if score >= 2:
         st.error("🚨 Email suspeito")
-
     else:
         st.success("🟢 Baixo risco")
 
     registrar("email",score,email[:80])
 
 # ======================
-# Histórico SOC
+# HISTÓRICO
 # ======================
 
 st.header("📊 Histórico SOC")
@@ -210,12 +247,12 @@ if historico:
 
     st.dataframe(df)
 
-    st.subheader("📈 Gráfico de eventos")
+    st.subheader("📈 Eventos detectados")
 
     st.bar_chart(df["tipo"].value_counts())
 
 # ======================
-# Painel SOC
+# PAINEL SOC
 # ======================
 
 st.header("📡 Painel SOC")
@@ -228,12 +265,12 @@ alertas = suspeitos
 
 col1,col2,col3 = st.columns(3)
 
-col1.metric("Eventos detectados", eventos)
-col2.metric("Eventos suspeitos", suspeitos)
-col3.metric("Alertas ativos", alertas)
+col1.metric("Eventos detectados",eventos)
+col2.metric("Eventos suspeitos",suspeitos)
+col3.metric("Alertas ativos",alertas)
 
 # ======================
-# Radar de ameaça
+# RADAR
 # ======================
 
 st.header("🛰️ Radar de ameaça")
@@ -248,7 +285,7 @@ else:
     st.success("🟢 Ambiente seguro")
 
 # ======================
-# Relatório PDF
+# RELATÓRIO
 # ======================
 
 st.header("📄 Gerar relatório")
@@ -262,6 +299,7 @@ if st.button("Gerar relatório PDF"):
     y = 800
 
     c.drawString(50,y,"Relatório Escudo Digital IA")
+
     y -= 40
 
     for e in historico:
