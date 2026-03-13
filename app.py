@@ -16,16 +16,15 @@ try:
 except Exception:
     OCR_OK = False
 
-
-# =========================
+# =========================================
 # CONFIG
-# =========================
+# =========================================
 
 st.set_page_config(page_title="Escudo Digital IA", layout="wide")
 
-# =========================
+# =========================================
 # TEMA VISUAL
-# =========================
+# =========================================
 
 st.markdown("""
 <style>
@@ -82,30 +81,33 @@ input, textarea{
 </style>
 """, unsafe_allow_html=True)
 
-# =========================
+st.title("🛡️ ESCUDO DIGITAL IA")
+st.subheader("SOC de monitoramento de golpes e análise OSINT")
+
+# =========================================
 # ARQUIVOS
-# =========================
+# =========================================
 
 HIST_ARQ = "historico.json"
 MAPA_ARQ = "mapa_ips.json"
 
-def carregar_json(nome):
+def carregar_json(nome_arquivo):
     try:
-        with open(nome, "r", encoding="utf-8") as f:
+        with open(nome_arquivo, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return []
 
-def salvar_json(nome, dados):
-    with open(nome, "w", encoding="utf-8") as f:
+def salvar_json(nome_arquivo, dados):
+    with open(nome_arquivo, "w", encoding="utf-8") as f:
         json.dump(dados, f, ensure_ascii=False, indent=2)
 
 historico = carregar_json(HIST_ARQ)
 mapa_ips = carregar_json(MAPA_ARQ)
 
-# =========================
-# LOGIN / MONETIZAÇÃO DEMO
-# =========================
+# =========================================
+# LOGIN / PREMIUM DEMO
+# =========================================
 
 if "uso" not in st.session_state:
     st.session_state.uso = 0
@@ -126,28 +128,36 @@ st.sidebar.title("👤 Conta")
 email_login = st.sidebar.text_input("Email")
 senha_login = st.sidebar.text_input("Senha", type="password")
 
-if st.sidebar.button("Entrar"):
-    if email_login and senha_login:
-        st.session_state.logado = True
-        st.session_state.email_usuario = email_login
-        st.sidebar.success("Login realizado")
-    else:
-        st.sidebar.warning("Preencha email e senha")
+col_login_1, col_login_2 = st.sidebar.columns(2)
 
-if st.sidebar.button("Criar conta"):
-    if email_login and senha_login:
-        st.session_state.logado = True
-        st.session_state.email_usuario = email_login
-        st.sidebar.success("Conta criada (modo simples)")
-    else:
-        st.sidebar.warning("Preencha email e senha")
+with col_login_1:
+    if st.button("Entrar"):
+        if email_login and senha_login:
+            st.session_state.logado = True
+            st.session_state.email_usuario = email_login
+            st.sidebar.success("✅ Login realizado")
+        else:
+            st.sidebar.warning("Preencha email e senha")
+
+with col_login_2:
+    if st.button("Criar conta"):
+        if email_login and senha_login:
+            st.session_state.logado = True
+            st.session_state.email_usuario = email_login
+            st.sidebar.success("✅ Conta criada")
+        else:
+            st.sidebar.warning("Preencha email e senha")
+
+if st.session_state.logado:
+    st.sidebar.success(f"👤 {st.session_state.email_usuario}")
+    if st.sidebar.button("Sair"):
+        st.session_state.logado = False
+        st.session_state.email_usuario = ""
+        st.rerun()
 
 if st.sidebar.button("Ativar Premium"):
     st.session_state.premium = True
-    st.sidebar.success("Plano premium ativado (modo demonstração)")
-
-if st.session_state.logado:
-    st.sidebar.info(f"Logado como: {st.session_state.email_usuario}")
+    st.sidebar.success("💎 Premium ativado (demo)")
 
 if st.session_state.premium:
     st.sidebar.success("💎 Premium ativo")
@@ -163,7 +173,7 @@ else:
 Você usou as 7 análises grátis.<br>
 Para continuar:<br>
 • Crie conta<br>
-• Ative o plano premium<br><br>
+• Ative premium<br><br>
 Sugestão de preço:<br>
 <b>R$ 9,90 por mês</b>
 </div>
@@ -174,9 +184,18 @@ def contar_uso():
     if not st.session_state.premium:
         st.session_state.uso += 1
 
-# =========================
-# DADOS E REGRAS
-# =========================
+st.markdown("""
+<div class='caixa-premium'>
+<b>💎 Modelo do app</b><br>
+7 análises grátis • depois premium sugerido: <b>R$ 9,90/mês</b>
+</div>
+""", unsafe_allow_html=True)
+
+modo_idoso = st.toggle("👵 Modo proteção para idosos", value=True)
+
+# =========================================
+# BASES DE REGRAS
+# =========================================
 
 sites_legitimos = [
     "google.com",
@@ -241,9 +260,9 @@ golpes_conhecidos = {
     "golpe_idoso": "mensagem envolvendo INSS, aposentadoria ou consignado"
 }
 
-# =========================
+# =========================================
 # FUNÇÕES
-# =========================
+# =========================================
 
 def registrar(tipo, score, detalhe="", categoria="", defesa=""):
     evento = {
@@ -424,20 +443,9 @@ def mostrar_resultado(score, categoria, achados):
     exibir_defesa(categoria)
     exibir_modo_idoso(categoria)
 
-# =========================
-# CABEÇALHO
-# =========================
-
-st.markdown("""
-<div class='caixa-premium'>
-<b>💎 Modelo do app</b><br>
-7 análises grátis • depois premium sugerido: <b>R$ 9,90/mês</b>
-</div>
-""", unsafe_allow_html=True)
-
-# =========================
+# =========================================
 # OSINT IP
-# =========================
+# =========================================
 
 st.header("🌍 Análise OSINT de IP")
 
@@ -487,9 +495,9 @@ if st.button("Analisar IP"):
     except Exception:
         st.error("Erro na consulta")
 
-# =========================
+# =========================================
 # RADAR GLOBAL
-# =========================
+# =========================================
 
 st.header("🌎 Radar global de ameaças")
 
@@ -513,9 +521,9 @@ if mapa_ips:
 else:
     st.info("Nenhum IP analisado ainda.")
 
-# =========================
+# =========================================
 # DETECTOR DE PHISHING
-# =========================
+# =========================================
 
 st.header("🚨 Detector de Phishing")
 
@@ -527,9 +535,9 @@ if st.button("Analisar mensagem"):
     mostrar_resultado(score, cat, achados)
     registrar("mensagem", score, msg[:150], cat)
 
-# =========================
+# =========================================
 # SCANNER DE DOMÍNIO
-# =========================
+# =========================================
 
 st.header("🔎 Scanner de domínio")
 
@@ -543,7 +551,7 @@ if st.button("Analisar domínio"):
     if clones:
         st.error("🚨 Possível site clone de banco detectado")
         for banco, sim in clones:
-            st.write(f"Parecido com: {banco} ({round(sim*100,1)}%)")
+            st.write(f"Parecido com: {banco} ({round(sim * 100, 1)}%)")
         score += 3
 
     if score >= 3:
@@ -561,9 +569,9 @@ if st.button("Analisar domínio"):
 
     registrar("dominio", score, dom, "dominio_suspeito" if score > 0 else "baixo_risco")
 
-# =========================
+# =========================================
 # OCR DE PRINT
-# =========================
+# =========================================
 
 st.header("📷 Analisar print de golpe")
 
@@ -590,9 +598,9 @@ if arq:
     else:
         st.warning("OCR não disponível no servidor")
 
-# =========================
+# =========================================
 # EMAIL
-# =========================
+# =========================================
 
 st.header("📧 Analisar email suspeito")
 
@@ -604,9 +612,9 @@ if st.button("Analisar email"):
     mostrar_resultado(score, cat, achados)
     registrar("email", score, email[:150], cat)
 
-# =========================
+# =========================================
 # HISTÓRICO
-# =========================
+# =========================================
 
 st.header("📊 Histórico SOC")
 
@@ -616,9 +624,9 @@ if historico:
 else:
     st.info("Nenhum evento registrado ainda.")
 
-# =========================
+# =========================================
 # PAINEL SOC
-# =========================
+# =========================================
 
 st.header("📡 Painel SOC")
 
@@ -631,9 +639,9 @@ c1.metric("Eventos detectados", total)
 c2.metric("Eventos suspeitos", sus)
 c3.metric("Alertas ativos", alert)
 
-# =========================
-# RADAR
-# =========================
+# =========================================
+# RADAR DE AMEAÇA
+# =========================================
 
 st.header("🛰 Radar de ameaça")
 
@@ -644,9 +652,9 @@ elif alert >= 1:
 else:
     st.success("🟢 Ambiente seguro")
 
-# =========================
+# =========================================
 # RANKING DE GOLPES
-# =========================
+# =========================================
 
 st.header("📈 Ranking de golpes")
 
@@ -659,9 +667,9 @@ if historico:
 else:
     st.info("Sem dados para ranking ainda.")
 
-# =========================
-# CAMPANHAS ATIVAS
-# =========================
+# =========================================
+# CAMPANHAS DE GOLPE
+# =========================================
 
 st.header("🚨 Campanhas de golpe")
 
@@ -681,18 +689,18 @@ if historico:
 else:
     st.info("Sem histórico suficiente para campanhas.")
 
-# =========================
+# =========================================
 # BIBLIOTECA DE GOLPES
-# =========================
+# =========================================
 
 st.header("📚 Biblioteca de golpes")
 
 for nome, desc in golpes_conhecidos.items():
     st.write(f"**{nome}** — {desc}")
 
-# =========================
+# =========================================
 # CHAT DO ESCUDO
-# =========================
+# =========================================
 
 st.header("🤖 Chat do Escudo")
 
@@ -765,9 +773,9 @@ if chat:
     score_chat, cat_chat, _ = classificar_texto(chat)
     registrar("chat", score_chat, chat[:150], cat_chat)
 
-# =========================
+# =========================================
 # RELATÓRIO PDF
-# =========================
+# =========================================
 
 st.header("📄 Gerar relatório")
 
