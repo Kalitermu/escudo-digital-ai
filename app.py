@@ -5,10 +5,10 @@ import json
 import datetime
 import io
 import difflib
+import re
+from urllib.parse import urlparse
 from PIL import Image
 from reportlab.pdfgen import canvas
-import folium
-from streamlit_folium import st_folium
 
 try:
     import pytesseract
@@ -22,10 +22,17 @@ try:
 except Exception:
     QR_OK = False
 
+try:
+    import folium
+    from streamlit_folium import st_folium
+    MAP_OK = True
+except Exception:
+    MAP_OK = False
 
-# =========================================
+
+# =========================================================
 # CONFIG
-# =========================================
+# =========================================================
 
 st.set_page_config(page_title="Escudo Digital IA", layout="wide")
 st.set_option("client.showErrorDetails", False)
@@ -37,10 +44,12 @@ LIMITE_GRATIS = 7
 USERS_FILE = "usuarios.json"
 HIST_FILE = "historico.json"
 MAPA_FILE = "mapa_ips.json"
+COMMUNITY_FILE = "comunidade.json"
 
-# =========================================
+
+# =========================================================
 # TEMA
-# =========================================
+# =========================================================
 
 st.markdown("""
 <style>
@@ -66,13 +75,6 @@ input, textarea{
     font-weight:bold;
     border:none;
 }
-[data-testid="stMetricValue"]{
-    color:#0f172a !important;
-    font-size:30px;
-}
-[data-testid="stMetricLabel"]{
-    color:#1e40af !important;
-}
 .caixa-defesa{
     background:#eff6ff;
     border:1px solid #bfdbfe;
@@ -94,12 +96,20 @@ input, textarea{
     padding:14px;
     margin-top:10px;
 }
+.caixa-info{
+    background:#f8fafc;
+    border:1px solid #cbd5e1;
+    border-radius:12px;
+    padding:14px;
+    margin-top:10px;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# =========================================
-# ARQUIVOS
-# =========================================
+
+# =========================================================
+# JSON
+# =========================================================
 
 def carregar_json(nome_arquivo, padrao):
     try:
@@ -115,10 +125,12 @@ def salvar_json(nome_arquivo, dados):
 usuarios = carregar_json(USERS_FILE, {})
 historico = carregar_json(HIST_FILE, [])
 mapa_ips = carregar_json(MAPA_FILE, [])
+comunidade = carregar_json(COMMUNITY_FILE, {})
 
-# =========================================
+
+# =========================================================
 # SESSÃO
-# =========================================
+# =========================================================
 
 if "logado" not in st.session_state:
     st.session_state.logado = False
@@ -129,9 +141,10 @@ if "email_usuario" not in st.session_state:
 if "premium_demo" not in st.session_state:
     st.session_state.premium_demo = False
 
-# =========================================
+
+# =========================================================
 # BASES
-# =========================================
+# =========================================================
 
 sites_legitimos = [
     "google.com",
@@ -189,6 +202,10 @@ indicadores = {
     "golpe_idoso": [
         "aposentado", "aposentadoria", "benefício",
         "beneficio", "inss", "consignado"
+    ],
+    "whatsapp_golpe": [
+        "whatsapp", "zap", "troquei de número", "troquei de numero",
+        "grupo da família", "grupo da familia", "me chama aqui"
     ]
 }
 
@@ -197,14 +214,16 @@ golpes_conhecidos = {
     "emprestimo_falso": "promessa de crédito fácil, pré-aprovado ou taxa de liberação",
     "phishing_banco": "mensagem pedindo login, senha ou confirmação de conta",
     "extorsao": "mensagem com ameaça, facção ou pedido de dinheiro",
-    "golpe_idoso": "mensagem envolvendo INSS, aposentadoria ou consignado"
+    "golpe_idoso": "mensagem envolvendo INSS, aposentadoria ou consignado",
+    "golpe_whatsapp": "mensagem com urgência, troca de número ou pedido financeiro"
 }
 
-# =========================================
-# USUÁRIO
-# =========================================
 
-def garantir_usuario(email: str) -> None:
+# =========================================================
+# USUÁRIO
+# =========================================================
+
+def garantir_usuario(email):
     if email not in usuarios:
         usuarios[email] = {
             "senha": "",
@@ -220,21 +239,23 @@ def usuario_atual():
     garantir_usuario(email)
     return usuarios[email]
 
-def premium_ativo() -> bool:
+def premium_ativo():
     user = usuario_atual()
     if not user:
         return False
     return user.get("premium", False) or st.session_state.premium_demo
 
-def uso_restante() -> int:
+def uso_restante():
     user = usuario_atual()
     if not user:
         return LIMITE_GRATIS
     return max(0, LIMITE_GRATIS - user.get("uso", 0))
 
-def limite_atingido() -> bool:
+def limite_atingido():
     user = usuario_atual()
-    if not user or premium_ativo():
+    if not user:
+        return False
+    if premium_ativo():
         return False
     return user.get("uso", 0) >= LIMITE_GRATIS
 
@@ -245,9 +266,10 @@ def contar_uso():
         usuarios[st.session_state.email_usuario] = user
         salvar_json(USERS_FILE, usuarios)
 
-# =========================================
-# FUNÇÕES DE NEGÓCIO
-# =========================================
+
+# =========================================================
+# FUNÇÕES
+# =========================================================
 
 def registrar(tipo, score, detalhe="", categoria=""):
     historico.append({
@@ -272,8 +294,28 @@ def registrar_ip(ip, lat, lon, pais, isp):
         mapa_ips.append(registro)
         salvar_json(MAPA_FILE, mapa_ips)
 
+def extrair_dominio(url_ou_dominio):
+    txt = (url_ou_dominio or "").strip()
+    if not txt:
+        return ""
+    if "://" not in txt:
+        txt = "http://" + txt
+    try:
+        return urlparse(txt).netloc.lower().replace("www.", "")
+    except Exception:
+        return url_ou_dominio.lower().replace("www.", "").strip()
+
+def score_para_risco(score):
+    if score <= 3:
+        return "🟢 Baixo"
+    if score <= 6:
+        return "🟡 Suspeito"
+    if score <= 9:
+        return "🟠 Provável golpe"
+    return "🔴 Altíssimo"
+
 def classificar_texto(texto):
-    texto_l = texto.lower()
+    texto_l = (texto or "").lower()
     score = 0
     achados = []
     categorias = []
@@ -287,18 +329,19 @@ def classificar_texto(texto):
 
         if hits > 0:
             categorias.append(categoria)
-
-            if categoria in ["emprestimo_falso", "phishing_bancario", "golpe_pix", "extorsao", "golpe_idoso"]:
+            if categoria in [
+                "emprestimo_falso",
+                "phishing_bancario",
+                "golpe_pix",
+                "extorsao",
+                "golpe_idoso",
+                "whatsapp_golpe"
+            ]:
                 score += hits * 2
             else:
                 score += hits
 
-    numeros_altos = [
-        "100.000", "200.000", "300.000", "500.000", "830.000",
-        "100000", "200000", "300000", "500000", "830000"
-    ]
-
-    for n in numeros_altos:
+    for n in ["100.000", "200.000", "300.000", "500.000", "830.000", "100000", "200000", "300000", "500000", "830000"]:
         if n in texto_l:
             score += 2
             achados.append(f"valor alto {n}")
@@ -315,40 +358,73 @@ def classificar_texto(texto):
         categoria_final = "possivel_phishing_bancario"
     elif "golpe_idoso" in categorias:
         categoria_final = "possivel_golpe_financeiro"
+    elif "whatsapp_golpe" in categorias:
+        categoria_final = "possivel_golpe_whatsapp"
     elif "engenharia_social" in categorias:
         categoria_final = "engenharia_social"
 
     return score, categoria_final, sorted(set(achados))
 
 def detectar_dominio_falso(url):
-    url = url.lower().strip().replace("https://", "").replace("http://", "").strip("/")
+    dominio = extrair_dominio(url)
     risco = 0
     motivos = []
 
     for token in ["login", "secure", "verify", "update", "account", "confirm", "seguro", "seguranca"]:
-        if token in url:
+        if token in dominio:
             risco += 1
             motivos.append(token)
 
     for site in sites_legitimos:
-        similaridade = difflib.SequenceMatcher(None, url, site).ratio()
-        if similaridade > 0.60 and url != site:
+        similaridade = difflib.SequenceMatcher(None, dominio, site).ratio()
+        if similaridade > 0.60 and dominio != site:
             risco += 2
             motivos.append(f"parecido com {site}")
 
     categoria = "dominio_suspeito" if risco > 0 else "baixo_risco"
-    return risco, categoria, sorted(set(motivos))
+    return dominio, risco, categoria, sorted(set(motivos))
 
 def detectar_site_clone_banco(url):
-    url = url.lower().strip().replace("https://", "").replace("http://", "").strip("/")
+    dominio = extrair_dominio(url)
     clones = []
-
     for banco in bancos_legitimos:
-        similaridade = difflib.SequenceMatcher(None, url, banco).ratio()
-        if similaridade > 0.65 and url != banco:
+        similaridade = difflib.SequenceMatcher(None, dominio, banco).ratio()
+        if similaridade > 0.65 and dominio != banco:
             clones.append((banco, similaridade))
-
     return clones
+
+def reputacao_heuristica_dominio(url):
+    dominio = extrair_dominio(url)
+    risco = 0
+    notas = []
+
+    if len(dominio) > 28:
+        risco += 2
+        notas.append("domínio muito longo")
+
+    if dominio.count("-") >= 2:
+        risco += 2
+        notas.append("muitos hífens")
+
+    if re.search(r"\d", dominio):
+        risco += 1
+        notas.append("contém números")
+
+    if any(x in dominio for x in ["login", "secure", "verify", "account", "update", "seguro"]):
+        risco += 2
+        notas.append("palavras típicas de phishing")
+
+    if dominio.endswith(".xyz") or dominio.endswith(".top") or dominio.endswith(".click") or dominio.endswith(".shop"):
+        risco += 2
+        notas.append("TLD suspeito")
+
+    return dominio, risco, notas
+
+def registrar_denuncia_comunidade(categoria):
+    if categoria not in comunidade:
+        comunidade[categoria] = 0
+    comunidade[categoria] += 1
+    salvar_json(COMMUNITY_FILE, comunidade)
 
 def exibir_defesa(categoria):
     base = [
@@ -379,6 +455,10 @@ def exibir_defesa(categoria):
         ],
         "possivel_golpe_financeiro": [
             "Golpes ligados a aposentadoria, INSS ou consignado exigem atenção redobrada."
+        ],
+        "possivel_golpe_whatsapp": [
+            "Desconfie de pedidos financeiros por WhatsApp, principalmente com urgência.",
+            "Confirme por ligação ou vídeo antes de transferir dinheiro."
         ]
     }
 
@@ -392,7 +472,6 @@ def exibir_defesa(categoria):
 def exibir_idoso(categoria, modo_idoso):
     if not modo_idoso or categoria == "baixo_risco":
         return
-
     st.markdown("""
     <div class='caixa-idoso'>
     <b>👵 Orientação simples</b><br><br>
@@ -414,6 +493,7 @@ def mostrar_resultado(score, categoria, achados, modo_idoso):
         st.success("🟢 Baixo risco")
 
     st.write("**Score:**", score)
+    st.write("**Nível de risco:**", score_para_risco(score))
     st.write("**Categoria:**", categoria)
 
     if achados:
@@ -439,18 +519,20 @@ def mostrar_bloco_premium():
     """, unsafe_allow_html=True)
 
     st.subheader("💳 Pagar com Pix")
-
     if QR_OK:
-        qr_img = qrcode.make(PIX_CODE)
-        st.image(qr_img, width=260)
-
+        try:
+            qr_img = qrcode.make(PIX_CODE)
+            st.image(qr_img, width=260)
+        except Exception:
+            pass
     st.write("Pix copia e cola:")
     st.code(PIX_CODE)
     st.info("Após o pagamento, clique em 'Ativar Premium (demo)' na barra lateral.")
 
-# =========================================
-# SIDEBAR LOGIN
-# =========================================
+
+# =========================================================
+# LOGIN
+# =========================================================
 
 st.sidebar.title("👤 Conta")
 
@@ -524,9 +606,10 @@ if st.session_state.logado:
 else:
     st.sidebar.info("Entre ou crie uma conta para usar o sistema.")
 
-# =========================================
+
+# =========================================================
 # APP
-# =========================================
+# =========================================================
 
 st.title("🛡️ ESCUDO DIGITAL IA")
 st.subheader("SOC de monitoramento de golpes e análise OSINT")
@@ -550,9 +633,10 @@ if st.session_state.logado and limite_atingido():
     st.error("🚫 Você atingiu o limite de análises gratuitas.")
     mostrar_bloco_premium()
 
-# =========================================
+
+# =========================================================
 # OSINT IP
-# =========================================
+# =========================================================
 
 st.header("🌍 Análise OSINT de IP")
 ip = st.text_input("Digite domínio ou IP")
@@ -566,7 +650,6 @@ if st.button("Analisar IP"):
         contar_uso()
         try:
             r = requests.get(f"http://ip-api.com/json/{ip}", timeout=10).json()
-
             if r.get("status") == "success":
                 pais = r.get("country")
                 cidade = r.get("city")
@@ -592,51 +675,53 @@ if st.button("Analisar IP"):
                 if lat and lon:
                     registrar_ip(ip, lat, lon, pais, isp)
 
-                    mapa = folium.Map(location=[lat, lon], zoom_start=4)
-                    folium.Marker(
-                        [lat, lon],
-                        popup=f"IP: {ip}<br>País: {pais}<br>ISP: {isp}",
-                        tooltip="Clique para detalhes"
-                    ).add_to(mapa)
-
-                    st_folium(mapa, width=700, height=420)
+                    if MAP_OK:
+                        mapa = folium.Map(location=[lat, lon], zoom_start=4)
+                        folium.Marker(
+                            [lat, lon],
+                            popup=f"IP: {ip}<br>País: {pais}<br>ISP: {isp}",
+                            tooltip="Clique para detalhes"
+                        ).add_to(mapa)
+                        st_folium(mapa, width=700, height=420)
             else:
                 st.error("Não foi possível localizar o IP")
         except Exception:
             st.error("Erro ao consultar IP.")
 
-# =========================================
+
+# =========================================================
 # RADAR GLOBAL
-# =========================================
+# =========================================================
 
 st.header("🌎 Radar global de ameaças")
 
-try:
-    if mapa_ips:
-        mapa = folium.Map(location=[0, 0], zoom_start=2)
+if MAP_OK:
+    try:
+        if mapa_ips:
+            mapa = folium.Map(location=[0, 0], zoom_start=2)
+            for item in mapa_ips:
+                lat = item.get("lat")
+                lon = item.get("lon")
+                if lat and lon:
+                    folium.CircleMarker(
+                        location=[lat, lon],
+                        radius=6,
+                        color="red",
+                        fill=True,
+                        popup=f"IP: {item.get('ip','?')}<br>País: {item.get('pais','?')}<br>ISP: {item.get('isp','?')}"
+                    ).add_to(mapa)
+            st_folium(mapa, width=900, height=480)
+        else:
+            st.info("Nenhum IP analisado ainda.")
+    except Exception:
+        st.warning("Erro ao carregar o mapa global.")
+else:
+    st.info("Mapa indisponível neste ambiente.")
 
-        for item in mapa_ips:
-            lat = item.get("lat")
-            lon = item.get("lon")
 
-            if lat and lon:
-                folium.CircleMarker(
-                    location=[lat, lon],
-                    radius=6,
-                    color="red",
-                    fill=True,
-                    popup=f"IP: {item.get('ip','?')}<br>País: {item.get('pais','?')}<br>ISP: {item.get('isp','?')}"
-                ).add_to(mapa)
-
-        st_folium(mapa, width=900, height=480)
-    else:
-        st.info("Nenhum IP analisado ainda.")
-except Exception:
-    st.warning("Erro ao carregar o mapa global.")
-
-# =========================================
+# =========================================================
 # PHISHING
-# =========================================
+# =========================================================
 
 st.header("🚨 Detector de Phishing")
 msg = st.text_area("Cole mensagem suspeita")
@@ -652,9 +737,36 @@ if st.button("Analisar mensagem"):
         mostrar_resultado(score, cat, achados, modo_idoso)
         registrar("mensagem", score, msg[:150], cat)
 
-# =========================================
+
+# =========================================================
+# WHATSAPP
+# =========================================================
+
+st.header("📱 Detector de golpes de WhatsApp")
+zap = st.text_area("Cole a conversa suspeita do WhatsApp")
+
+if st.button("Analisar conversa"):
+    if bloqueado:
+        st.warning("Faça login ou ative o Premium para continuar.")
+        if limite_atingido():
+            mostrar_bloco_premium()
+    else:
+        contar_uso()
+        score, cat, achados = classificar_texto(zap)
+
+        if "whatsapp" in zap.lower() or "troquei de número" in zap.lower() or "troquei de numero" in zap.lower():
+            score += 2
+            achados.append("padrão de golpe por WhatsApp")
+            if cat == "baixo_risco":
+                cat = "possivel_golpe_whatsapp"
+
+        mostrar_resultado(score, cat, sorted(set(achados)), modo_idoso)
+        registrar("whatsapp", score, zap[:150], cat)
+
+
+# =========================================================
 # DOMÍNIO
-# =========================================
+# =========================================================
 
 st.header("🔎 Scanner de domínio")
 dom = st.text_input("Digite URL suspeita")
@@ -666,8 +778,9 @@ if st.button("Analisar domínio"):
             mostrar_bloco_premium()
     else:
         contar_uso()
-        score, categoria_dom, motivos = detectar_dominio_falso(dom)
+        dominio_extraido, score, categoria_dom, motivos = detectar_dominio_falso(dom)
         clones = detectar_site_clone_banco(dom)
+        _, risco_rep, notas_rep = reputacao_heuristica_dominio(dom)
 
         if clones:
             st.error("🚨 Possível site clone de banco detectado")
@@ -675,24 +788,33 @@ if st.button("Analisar domínio"):
                 st.write(f"Parecido com: {banco} ({round(sim * 100, 1)}%)")
             score += 3
 
+        st.write("**Domínio:**", dominio_extraido)
+        st.write("**Score:**", score)
+        st.write("**Nível de risco:**", score_para_risco(score))
+
+        if motivos:
+            st.write("**Motivos:**", ", ".join(motivos))
+
+        st.markdown("<div class='caixa-info'><b>🔍 Reputação heurística do domínio</b></div>", unsafe_allow_html=True)
+        st.write("**Risco heurístico:**", risco_rep)
+        if notas_rep:
+            st.write("**Notas:**", ", ".join(notas_rep))
+        else:
+            st.write("**Notas:** nenhum sinal forte")
+
         if score >= 3:
             st.warning("⚠️ Domínio suspeito")
         else:
             st.success("🟢 Domínio aparentemente seguro")
 
-        st.write("**Score:**", score)
-
-        if motivos:
-            st.write("**Motivos:**", ", ".join(motivos))
-
         exibir_defesa("dominio_suspeito" if score > 0 else "baixo_risco")
         exibir_idoso("dominio_suspeito" if score > 0 else "baixo_risco", modo_idoso)
+        registrar("dominio", score, dominio_extraido, "dominio_suspeito" if score > 0 else "baixo_risco")
 
-        registrar("dominio", score, dom, "dominio_suspeito" if score > 0 else "baixo_risco")
 
-# =========================================
+# =========================================================
 # OCR
-# =========================================
+# =========================================================
 
 st.header("📷 Analisar print de golpe")
 arq = st.file_uploader("Envie print", type=["png", "jpg", "jpeg"])
@@ -721,9 +843,10 @@ if arq:
         else:
             st.warning("OCR não disponível no servidor.")
 
-# =========================================
+
+# =========================================================
 # EMAIL
-# =========================================
+# =========================================================
 
 st.header("📧 Analisar email suspeito")
 email = st.text_area("Cole o email")
@@ -739,9 +862,37 @@ if st.button("Analisar email"):
         mostrar_resultado(score, cat, achados, modo_idoso)
         registrar("email", score, email[:150], cat)
 
-# =========================================
+
+# =========================================================
+# COMUNIDADE
+# =========================================================
+
+st.header("👥 Denúncia da comunidade")
+categoria_denuncia = st.selectbox(
+    "Categoria para denunciar",
+    [
+        "possivel_phishing_bancario",
+        "possivel_golpe_pix",
+        "possivel_emprestimo_falso",
+        "possivel_extorsao",
+        "possivel_golpe_financeiro",
+        "possivel_golpe_whatsapp"
+    ]
+)
+
+if st.button("🚨 Denunciar golpe"):
+    registrar_denuncia_comunidade(categoria_denuncia)
+    st.success("Denúncia registrada.")
+
+if comunidade:
+    df_com = pd.DataFrame([{"Categoria": k, "Denúncias": v} for k, v in comunidade.items()])
+    df_com = df_com.sort_values("Denúncias", ascending=False)
+    st.dataframe(df_com, use_container_width=True)
+
+
+# =========================================================
 # HISTÓRICO
-# =========================================
+# =========================================================
 
 st.header("📊 Histórico SOC")
 
@@ -753,14 +904,14 @@ if historico:
 else:
     st.info("Nenhum evento registrado ainda.")
 
-# =========================================
+
+# =========================================================
 # PAINEL
-# =========================================
+# =========================================================
 
 st.header("📡 Painel SOC")
 
-df_user = pd.DataFrame(historico) if historico else pd.DataFrame(columns=["score", "usuario"])
-
+df_user = pd.DataFrame(historico) if historico else pd.DataFrame(columns=["score", "usuario", "data", "categoria"])
 if not df_user.empty and st.session_state.logado and "usuario" in df_user.columns:
     df_user = df_user[df_user["usuario"] == st.session_state.email_usuario]
 
@@ -773,9 +924,10 @@ c1.metric("Eventos detectados", total)
 c2.metric("Eventos suspeitos", sus)
 c3.metric("Alertas ativos", alert)
 
-# =========================================
+
+# =========================================================
 # RADAR DE AMEAÇA
-# =========================================
+# =========================================================
 
 st.header("🛰 Radar de ameaça")
 
@@ -786,9 +938,10 @@ elif alert >= 1:
 else:
     st.success("🟢 Ambiente seguro")
 
-# =========================================
+
+# =========================================================
 # RANKING
-# =========================================
+# =========================================================
 
 st.header("📈 Ranking de golpes")
 
@@ -799,9 +952,10 @@ if not df_user.empty and "categoria" in df_user.columns:
 else:
     st.info("Sem dados para ranking ainda.")
 
-# =========================================
+
+# =========================================================
 # CAMPANHAS
-# =========================================
+# =========================================================
 
 st.header("🚨 Campanhas de golpe")
 
@@ -814,23 +968,37 @@ if not df_user.empty and "categoria" in df_user.columns:
             encontrou = True
             st.warning(f"Possível campanha ativa: {tipo} ({valor} ocorrências)")
 
+    try:
+        df_user = df_user.copy()
+        df_user["data_dt"] = pd.to_datetime(df_user["data"])
+        ultimas_24h = df_user[df_user["data_dt"] >= (pd.Timestamp.now() - pd.Timedelta(hours=24))]
+        if not ultimas_24h.empty:
+            top24 = ultimas_24h["categoria"].value_counts()
+            for tipo, valor in top24.items():
+                if valor >= 2 and tipo != "baixo_risco":
+                    st.info(f"Últimas 24h: {tipo} ({valor} ocorrências)")
+    except Exception:
+        pass
+
     if not encontrou:
         st.success("Nenhuma campanha forte detectada no momento.")
 else:
     st.info("Sem histórico suficiente para campanhas.")
 
-# =========================================
+
+# =========================================================
 # BIBLIOTECA
-# =========================================
+# =========================================================
 
 st.header("📚 Biblioteca de golpes")
 
 for nome, desc in golpes_conhecidos.items():
     st.write(f"**{nome}** — {desc}")
 
-# =========================================
+
+# =========================================================
 # CHAT
-# =========================================
+# =========================================================
 
 st.header("🤖 Chat do Escudo")
 chat = st.text_input("Pergunte algo")
@@ -859,14 +1027,15 @@ ASN: {r.get('as')}"""
         partes = texto.split()
         for p in partes:
             if "." in p:
-                score_dom, cat_dom, motivos = detectar_dominio_falso(p)
+                dominio, score_dom, cat_dom, motivos = detectar_dominio_falso(p)
                 clones = detectar_site_clone_banco(p)
 
                 resposta = f"""🔎 Análise de domínio
 
-Domínio: {p}
+Domínio: {dominio}
 Score: {score_dom}
-Categoria: {cat_dom}"""
+Categoria: {cat_dom}
+Risco: {score_para_risco(score_dom)}"""
 
                 if motivos:
                     resposta += f"\nMotivos: {', '.join(motivos)}"
@@ -881,6 +1050,7 @@ Categoria: {cat_dom}"""
 
 Score: {score}
 Categoria: {cat}
+Risco: {score_para_risco(score)}
 Sinais: {", ".join(achados)}"""
 
     return """🤖 Posso ajudar com:
@@ -888,6 +1058,7 @@ Sinais: {", ".join(achados)}"""
 • analisar IP
 • verificar site
 • detectar golpes
+• analisar conversa de WhatsApp
 
 Exemplos:
 analise ip 8.8.8.8
@@ -906,9 +1077,10 @@ if chat:
         score_chat, cat_chat, _ = classificar_texto(chat)
         registrar("chat", score_chat, chat[:150], cat_chat)
 
-# =========================================
+
+# =========================================================
 # PDF
-# =========================================
+# =========================================================
 
 st.header("📄 Gerar relatório")
 
@@ -921,7 +1093,6 @@ if st.button("Gerar PDF"):
     y -= 30
 
     df_pdf = pd.DataFrame(historico) if historico else pd.DataFrame()
-
     if not df_pdf.empty and st.session_state.logado and "usuario" in df_pdf.columns:
         df_pdf = df_pdf[df_pdf["usuario"] == st.session_state.email_usuario]
 
