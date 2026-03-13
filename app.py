@@ -16,6 +16,11 @@ try:
 except Exception:
     OCR_OK = False
 
+
+# =========================
+# CONFIG
+# =========================
+
 st.set_page_config(page_title="Escudo Digital IA", layout="wide")
 
 # =========================
@@ -67,20 +72,15 @@ input, textarea{
     padding:14px;
     margin-top:10px;
 }
-.caixa-alerta{
-    background:#fef2f2;
-    border:1px solid #fecaca;
+.caixa-premium{
+    background:#ecfeff;
+    border:1px solid #67e8f9;
     border-radius:12px;
     padding:14px;
     margin-top:10px;
 }
 </style>
 """, unsafe_allow_html=True)
-
-st.title("🛡️ ESCUDO DIGITAL IA")
-st.subheader("SOC de monitoramento de golpes e análise OSINT")
-
-modo_idoso = st.toggle("👵 Modo proteção para idosos", value=True)
 
 # =========================
 # ARQUIVOS
@@ -103,32 +103,79 @@ def salvar_json(nome, dados):
 historico = carregar_json(HIST_ARQ)
 mapa_ips = carregar_json(MAPA_ARQ)
 
-def registrar(tipo, score, detalhe="", categoria="", defesa=""):
-    evento = {
-        "data": str(datetime.datetime.now()),
-        "tipo": tipo,
-        "score": score,
-        "categoria": categoria,
-        "detalhe": detalhe,
-        "defesa": defesa
-    }
-    historico.append(evento)
-    salvar_json(HIST_ARQ, historico)
+# =========================
+# LOGIN / MONETIZAÇÃO DEMO
+# =========================
 
-def registrar_ip(ip, lat, lon, pais, isp):
-    registro = {
-        "ip": ip,
-        "lat": lat,
-        "lon": lon,
-        "pais": pais,
-        "isp": isp
-    }
-    if registro not in mapa_ips:
-        mapa_ips.append(registro)
-        salvar_json(MAPA_ARQ, mapa_ips)
+if "uso" not in st.session_state:
+    st.session_state.uso = 0
+
+if "premium" not in st.session_state:
+    st.session_state.premium = False
+
+if "logado" not in st.session_state:
+    st.session_state.logado = False
+
+if "email_usuario" not in st.session_state:
+    st.session_state.email_usuario = ""
+
+LIMITE_GRATIS = 7
+
+st.sidebar.title("👤 Conta")
+
+email_login = st.sidebar.text_input("Email")
+senha_login = st.sidebar.text_input("Senha", type="password")
+
+if st.sidebar.button("Entrar"):
+    if email_login and senha_login:
+        st.session_state.logado = True
+        st.session_state.email_usuario = email_login
+        st.sidebar.success("Login realizado")
+    else:
+        st.sidebar.warning("Preencha email e senha")
+
+if st.sidebar.button("Criar conta"):
+    if email_login and senha_login:
+        st.session_state.logado = True
+        st.session_state.email_usuario = email_login
+        st.sidebar.success("Conta criada (modo simples)")
+    else:
+        st.sidebar.warning("Preencha email e senha")
+
+if st.sidebar.button("Ativar Premium"):
+    st.session_state.premium = True
+    st.sidebar.success("Plano premium ativado (modo demonstração)")
+
+if st.session_state.logado:
+    st.sidebar.info(f"Logado como: {st.session_state.email_usuario}")
+
+if st.session_state.premium:
+    st.sidebar.success("💎 Premium ativo")
+else:
+    restante = max(0, LIMITE_GRATIS - st.session_state.uso)
+    st.sidebar.info(f"Análises grátis restantes: {restante}")
+
+    if st.session_state.uso >= LIMITE_GRATIS:
+        st.error("🚫 Você atingiu o limite de análises gratuitas.")
+        st.markdown("""
+<div class='caixa-premium'>
+<b>💎 Escudo Digital Premium</b><br><br>
+Você usou as 7 análises grátis.<br>
+Para continuar:<br>
+• Crie conta<br>
+• Ative o plano premium<br><br>
+Sugestão de preço:<br>
+<b>R$ 9,90 por mês</b>
+</div>
+""", unsafe_allow_html=True)
+        st.stop()
+
+def contar_uso():
+    if not st.session_state.premium:
+        st.session_state.uso += 1
 
 # =========================
-# BASES
+# DADOS E REGRAS
 # =========================
 
 sites_legitimos = [
@@ -195,8 +242,32 @@ golpes_conhecidos = {
 }
 
 # =========================
-# FUNÇÕES DE ANÁLISE
+# FUNÇÕES
 # =========================
+
+def registrar(tipo, score, detalhe="", categoria="", defesa=""):
+    evento = {
+        "data": str(datetime.datetime.now()),
+        "tipo": tipo,
+        "score": score,
+        "categoria": categoria,
+        "detalhe": detalhe,
+        "defesa": defesa
+    }
+    historico.append(evento)
+    salvar_json(HIST_ARQ, historico)
+
+def registrar_ip(ip, lat, lon, pais, isp):
+    registro = {
+        "ip": ip,
+        "lat": lat,
+        "lon": lon,
+        "pais": pais,
+        "isp": isp
+    }
+    if registro not in mapa_ips:
+        mapa_ips.append(registro)
+        salvar_json(MAPA_ARQ, mapa_ips)
 
 def classificar_texto(texto):
     texto_l = texto.lower()
@@ -354,6 +425,17 @@ def mostrar_resultado(score, categoria, achados):
     exibir_modo_idoso(categoria)
 
 # =========================
+# CABEÇALHO
+# =========================
+
+st.markdown("""
+<div class='caixa-premium'>
+<b>💎 Modelo do app</b><br>
+7 análises grátis • depois premium sugerido: <b>R$ 9,90/mês</b>
+</div>
+""", unsafe_allow_html=True)
+
+# =========================
 # OSINT IP
 # =========================
 
@@ -362,6 +444,7 @@ st.header("🌍 Análise OSINT de IP")
 ip = st.text_input("Digite domínio ou IP")
 
 if st.button("Analisar IP"):
+    contar_uso()
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}", timeout=10).json()
 
@@ -439,6 +522,7 @@ st.header("🚨 Detector de Phishing")
 msg = st.text_area("Cole mensagem suspeita")
 
 if st.button("Analisar mensagem"):
+    contar_uso()
     score, cat, achados = classificar_texto(msg)
     mostrar_resultado(score, cat, achados)
     registrar("mensagem", score, msg[:150], cat)
@@ -452,6 +536,7 @@ st.header("🔎 Scanner de domínio")
 dom = st.text_input("Digite URL suspeita")
 
 if st.button("Analisar domínio"):
+    contar_uso()
     score, categoria_dom, motivos = detectar_dominio_falso(dom)
 
     clones = detectar_site_clone_banco(dom)
@@ -485,6 +570,7 @@ st.header("📷 Analisar print de golpe")
 arq = st.file_uploader("Envie print", type=["png", "jpg", "jpeg"])
 
 if arq:
+    contar_uso()
     img = Image.open(arq)
     st.image(img)
 
@@ -513,6 +599,7 @@ st.header("📧 Analisar email suspeito")
 email = st.text_area("Cole o email")
 
 if st.button("Analisar email"):
+    contar_uso()
     score, cat, achados = classificar_texto(email)
     mostrar_resultado(score, cat, achados)
     registrar("email", score, email[:150], cat)
@@ -566,8 +653,9 @@ st.header("📈 Ranking de golpes")
 if historico:
     df_rank = pd.DataFrame(historico)
     if "categoria" in df_rank.columns:
-        ranking = df_rank["categoria"].value_counts()
-        st.bar_chart(ranking)
+        ranking = df_rank["categoria"].value_counts().reset_index()
+        ranking.columns = ["Categoria", "Quantidade"]
+        st.dataframe(ranking, use_container_width=True)
 else:
     st.info("Sem dados para ranking ainda.")
 
@@ -670,6 +758,7 @@ isso é golpe de pix urgente
 """
 
 if chat:
+    contar_uso()
     resposta = responder_chat(chat)
     st.write(resposta)
 
