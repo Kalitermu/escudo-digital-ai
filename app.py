@@ -16,11 +16,22 @@ try:
 except Exception:
     OCR_OK = False
 
+try:
+    import qrcode
+    QR_OK = True
+except Exception:
+    QR_OK = False
+
+
 # =========================================
 # CONFIG
 # =========================================
 
 st.set_page_config(page_title="Escudo Digital IA", layout="wide")
+
+PIX_CODE = "00020126580014BR.GOV.BCB.PIX01365cecf979-d86a-4b71-9f03-a807d013e28a52040000530398654049.905802BR5915Ariel Jose Luiz6009SAO PAULO62140510tYrHuV1cyX63044599"
+PRECO_PREMIUM = "R$ 9,90/mês"
+LIMITE_GRATIS = 7
 
 # =========================================
 # TEMA VISUAL
@@ -78,11 +89,15 @@ input, textarea{
     padding:14px;
     margin-top:10px;
 }
+.caixa-alerta{
+    background:#fef2f2;
+    border:1px solid #fecaca;
+    border-radius:12px;
+    padding:14px;
+    margin-top:10px;
+}
 </style>
 """, unsafe_allow_html=True)
-
-st.title("🛡️ ESCUDO DIGITAL IA")
-st.subheader("SOC de monitoramento de golpes e análise OSINT")
 
 # =========================================
 # ARQUIVOS
@@ -106,7 +121,7 @@ historico = carregar_json(HIST_ARQ)
 mapa_ips = carregar_json(MAPA_ARQ)
 
 # =========================================
-# LOGIN / PREMIUM DEMO
+# SESSÃO / LOGIN / PREMIUM
 # =========================================
 
 if "uso" not in st.session_state:
@@ -120,8 +135,6 @@ if "logado" not in st.session_state:
 
 if "email_usuario" not in st.session_state:
     st.session_state.email_usuario = ""
-
-LIMITE_GRATIS = 7
 
 st.sidebar.title("👤 Conta")
 
@@ -155,9 +168,9 @@ if st.session_state.logado:
         st.session_state.email_usuario = ""
         st.rerun()
 
-if st.sidebar.button("Ativar Premium"):
+if st.sidebar.button("Ativar Premium (demo)"):
     st.session_state.premium = True
-    st.sidebar.success("💎 Premium ativado (demo)")
+    st.sidebar.success("💎 Premium ativado")
 
 if st.session_state.premium:
     st.sidebar.success("💎 Premium ativo")
@@ -165,36 +178,14 @@ else:
     restante = max(0, LIMITE_GRATIS - st.session_state.uso)
     st.sidebar.info(f"Análises grátis restantes: {restante}")
 
-    if st.session_state.uso >= LIMITE_GRATIS:
-        st.error("🚫 Você atingiu o limite de análises gratuitas.")
-        st.markdown("""
-<div class='caixa-premium'>
-<b>💎 Escudo Digital Premium</b><br><br>
-Você usou as 7 análises grátis.<br>
-Para continuar:<br>
-• Crie conta<br>
-• Ative premium<br><br>
-Sugestão de preço:<br>
-<b>R$ 9,90 por mês</b>
-</div>
-""", unsafe_allow_html=True)
-        st.stop()
+limite_atingido = (not st.session_state.premium) and (st.session_state.uso >= LIMITE_GRATIS)
 
 def contar_uso():
-    if not st.session_state.premium:
+    if not st.session_state.premium and not limite_atingido:
         st.session_state.uso += 1
 
-st.markdown("""
-<div class='caixa-premium'>
-<b>💎 Modelo do app</b><br>
-7 análises grátis • depois premium sugerido: <b>R$ 9,90/mês</b>
-</div>
-""", unsafe_allow_html=True)
-
-modo_idoso = st.toggle("👵 Modo proteção para idosos", value=True)
-
 # =========================================
-# BASES DE REGRAS
+# DADOS DE REGRAS
 # =========================================
 
 sites_legitimos = [
@@ -224,12 +215,14 @@ bancos_legitimos = [
 
 indicadores = {
     "phishing_bancario": [
-        "senha", "login", "banco", "verificação", "verificacao", "codigo", "código",
-        "confirme", "conta bloqueada", "segurança", "seguranca", "acesso", "conta"
+        "senha", "login", "banco", "verificação", "verificacao",
+        "codigo", "código", "confirme", "conta bloqueada",
+        "segurança", "seguranca", "acesso", "conta"
     ],
     "golpe_pix": [
-        "pix", "chave pix", "transferência", "transferencia", "pix urgente",
-        "manda pix", "pagamento imediato", "comprovante", "estorno"
+        "pix", "chave pix", "transferência", "transferencia",
+        "pix urgente", "manda pix", "pagamento imediato",
+        "comprovante", "estorno"
     ],
     "emprestimo_falso": [
         "empréstimo", "emprestimo", "pré-aprovado", "pre-aprovado",
@@ -238,17 +231,19 @@ indicadores = {
         "veiculo em garantia", "parcelas", "consignado"
     ],
     "extorsao": [
-        "facção", "faccao", "pcc", "cv", "comando", "estamos monitorando",
-        "sua família", "sua familia", "se não pagar", "se nao pagar",
-        "pague agora", "resolva isso agora", "ameaça", "ameaca"
+        "facção", "faccao", "pcc", "cv", "comando",
+        "estamos monitorando", "sua família", "sua familia",
+        "se não pagar", "se nao pagar", "pague agora",
+        "resolva isso agora", "ameaça", "ameaca"
     ],
     "engenharia_social": [
         "urgente", "agora", "hoje", "imediatamente",
-        "clique aqui", "última chance", "ultima chance", "não perca", "nao perca"
+        "clique aqui", "última chance", "ultima chance",
+        "não perca", "nao perca"
     ],
     "golpe_idoso": [
-        "aposentado", "aposentadoria", "benefício", "beneficio",
-        "inss", "consignado"
+        "aposentado", "aposentadoria", "benefício",
+        "beneficio", "inss", "consignado"
     ]
 }
 
@@ -303,7 +298,6 @@ def classificar_texto(texto):
 
         if hits > 0:
             categorias.append(categoria)
-
             if categoria in ["emprestimo_falso", "phishing_bancario", "golpe_pix", "extorsao", "golpe_idoso"]:
                 score += hits * 2
             else:
@@ -341,7 +335,10 @@ def detectar_dominio_falso(url):
     risco = 0
     motivos = []
 
-    tokens_suspeitos = ["login", "secure", "verify", "update", "account", "confirm", "seguro", "seguranca"]
+    tokens_suspeitos = [
+        "login", "secure", "verify", "update", "account",
+        "confirm", "seguro", "seguranca"
+    ]
 
     for token in tokens_suspeitos:
         if token in url:
@@ -354,7 +351,8 @@ def detectar_dominio_falso(url):
             risco += 2
             motivos.append(f"parecido com {site}")
 
-    return risco, "dominio_suspeito" if risco > 0 else "baixo_risco", sorted(set(motivos))
+    categoria = "dominio_suspeito" if risco > 0 else "baixo_risco"
+    return risco, categoria, sorted(set(motivos))
 
 def detectar_site_clone_banco(url):
     url = url.lower().strip().replace("https://", "").replace("http://", "").strip("/")
@@ -443,6 +441,50 @@ def mostrar_resultado(score, categoria, achados):
     exibir_defesa(categoria)
     exibir_modo_idoso(categoria)
 
+def mostrar_bloco_premium():
+    st.markdown(f"""
+<div class='caixa-premium'>
+<b>💎 Escudo Digital Premium</b><br><br>
+Você usou as {LIMITE_GRATIS} análises grátis.<br>
+Para continuar:<br>
+• Crie conta<br>
+• Ative premium<br><br>
+<b>{PRECO_PREMIUM}</b>
+</div>
+""", unsafe_allow_html=True)
+
+    st.subheader("💳 Pagar com Pix")
+    st.write(f"Plano Premium: **{PRECO_PREMIUM}**")
+
+    if QR_OK:
+        qr_img = qrcode.make(PIX_CODE)
+        st.image(qr_img, width=260)
+
+    st.write("Pix copia e cola:")
+    st.code(PIX_CODE)
+
+    st.info("Após o pagamento, libere o premium manualmente no botão da barra lateral.")
+
+# =========================================
+# CABEÇALHO
+# =========================================
+
+st.title("🛡️ ESCUDO DIGITAL IA")
+st.subheader("SOC de monitoramento de golpes e análise OSINT")
+
+st.markdown(f"""
+<div class='caixa-premium'>
+<b>💎 Modelo do app</b><br>
+{LIMITE_GRATIS} análises grátis • depois premium sugerido: <b>{PRECO_PREMIUM}</b>
+</div>
+""", unsafe_allow_html=True)
+
+modo_idoso = st.toggle("👵 Modo proteção para idosos", value=True)
+
+if limite_atingido:
+    st.error("🚫 Você atingiu o limite de análises gratuitas.")
+    mostrar_bloco_premium()
+
 # =========================================
 # OSINT IP
 # =========================================
@@ -451,7 +493,7 @@ st.header("🌍 Análise OSINT de IP")
 
 ip = st.text_input("Digite domínio ou IP")
 
-if st.button("Analisar IP"):
+if st.button("Analisar IP") and not limite_atingido:
     contar_uso()
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}", timeout=10).json()
@@ -522,28 +564,28 @@ else:
     st.info("Nenhum IP analisado ainda.")
 
 # =========================================
-# DETECTOR DE PHISHING
+# PHISHING
 # =========================================
 
 st.header("🚨 Detector de Phishing")
 
 msg = st.text_area("Cole mensagem suspeita")
 
-if st.button("Analisar mensagem"):
+if st.button("Analisar mensagem") and not limite_atingido:
     contar_uso()
     score, cat, achados = classificar_texto(msg)
     mostrar_resultado(score, cat, achados)
     registrar("mensagem", score, msg[:150], cat)
 
 # =========================================
-# SCANNER DE DOMÍNIO
+# DOMÍNIO
 # =========================================
 
 st.header("🔎 Scanner de domínio")
 
 dom = st.text_input("Digite URL suspeita")
 
-if st.button("Analisar domínio"):
+if st.button("Analisar domínio") and not limite_atingido:
     contar_uso()
     score, categoria_dom, motivos = detectar_dominio_falso(dom)
 
@@ -570,14 +612,14 @@ if st.button("Analisar domínio"):
     registrar("dominio", score, dom, "dominio_suspeito" if score > 0 else "baixo_risco")
 
 # =========================================
-# OCR DE PRINT
+# OCR
 # =========================================
 
 st.header("📷 Analisar print de golpe")
 
 arq = st.file_uploader("Envie print", type=["png", "jpg", "jpeg"])
 
-if arq:
+if arq and not limite_atingido:
     contar_uso()
     img = Image.open(arq)
     st.image(img)
@@ -606,7 +648,7 @@ st.header("📧 Analisar email suspeito")
 
 email = st.text_area("Cole o email")
 
-if st.button("Analisar email"):
+if st.button("Analisar email") and not limite_atingido:
     contar_uso()
     score, cat, achados = classificar_texto(email)
     mostrar_resultado(score, cat, achados)
@@ -653,7 +695,7 @@ else:
     st.success("🟢 Ambiente seguro")
 
 # =========================================
-# RANKING DE GOLPES
+# RANKING
 # =========================================
 
 st.header("📈 Ranking de golpes")
@@ -668,7 +710,7 @@ else:
     st.info("Sem dados para ranking ainda.")
 
 # =========================================
-# CAMPANHAS DE GOLPE
+# CAMPANHAS
 # =========================================
 
 st.header("🚨 Campanhas de golpe")
@@ -690,7 +732,7 @@ else:
     st.info("Sem histórico suficiente para campanhas.")
 
 # =========================================
-# BIBLIOTECA DE GOLPES
+# BIBLIOTECA
 # =========================================
 
 st.header("📚 Biblioteca de golpes")
@@ -699,7 +741,7 @@ for nome, desc in golpes_conhecidos.items():
     st.write(f"**{nome}** — {desc}")
 
 # =========================================
-# CHAT DO ESCUDO
+# CHAT
 # =========================================
 
 st.header("🤖 Chat do Escudo")
@@ -765,13 +807,15 @@ verificar site itau-login-seguro.com
 isso é golpe de pix urgente
 """
 
-if chat:
+if chat and not limite_atingido:
     contar_uso()
     resposta = responder_chat(chat)
     st.write(resposta)
 
     score_chat, cat_chat, _ = classificar_texto(chat)
     registrar("chat", score_chat, chat[:150], cat_chat)
+elif chat and limite_atingido:
+    st.warning("Ative o premium para continuar usando o chat.")
 
 # =========================================
 # RELATÓRIO PDF
