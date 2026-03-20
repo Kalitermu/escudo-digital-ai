@@ -6,3 +6,4 @@ pytesseract
 reportlab
 folium
 streamlit-folium
+openai
