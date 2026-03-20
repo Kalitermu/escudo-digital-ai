@@ -35,7 +35,7 @@ if "suspeitos" not in st.session_state:
     st.session_state.suspeitos = 0
 
 # =========================
-# IA
+# IA + OFFLINE (MELHORADO)
 # =========================
 def analisar_texto(texto):
     try:
@@ -47,7 +47,7 @@ def analisar_texto(texto):
                     "content": """
 Você é especialista em fraudes digitais (SOC).
 
-Detecte golpes e responda:
+Responda:
 
 🔎 Risco:
 📊 Score:
@@ -66,13 +66,52 @@ Detecte golpes e responda:
         if "ALTO" in resultado:
             st.session_state.alertas += 1
 
-        if any(p in texto.lower() for p in ["pix","urgente","senha","código"]):
-            st.session_state.suspeitos += 1
-
         return resultado
 
-    except Exception as e:
-        return f"Erro IA: {e}"
+    except:
+        # 🔥 MODO OFFLINE INTELIGENTE
+        texto_lower = texto.lower()
+
+        risco = "BAIXO"
+        score = 10
+        motivos = []
+
+        if "pix" in texto_lower:
+            risco = "ALTO"
+            score = 90
+            motivos.append("Pedido de PIX")
+
+        if "urgente" in texto_lower:
+            risco = "ALTO"
+            score = max(score, 85)
+            motivos.append("Urgência")
+
+        if "senha" in texto_lower or "código" in texto_lower:
+            risco = "ALTO"
+            score = 95
+            motivos.append("Solicitação de dados sensíveis")
+
+        if "link" in texto_lower:
+            risco = "MÉDIO"
+            score = max(score, 60)
+            motivos.append("Link suspeito")
+
+        if any(p in texto_lower for p in ["inss","benefício"]):
+            risco = "ALTO"
+            score = 92
+            motivos.append("Possível golpe INSS")
+
+        st.session_state.eventos += 1
+
+        if risco == "ALTO":
+            st.session_state.alertas += 1
+
+        return f"""
+🔎 Risco: {risco}
+📊 Score: {score}
+⚠️ Motivo: {', '.join(motivos) if motivos else 'Nenhum forte indício'}
+💡 Recomendação: Não envie dados e confirme a origem
+"""
 
 # =========================
 # LOGIN / CADASTRO
@@ -83,7 +122,6 @@ if not st.session_state.logado:
 
     opcao = st.selectbox("Escolha", ["Login", "Criar conta", "Esqueci senha"])
 
-    # LOGIN
     if opcao == "Login":
         email = st.text_input("Email")
         senha = st.text_input("Senha", type="password")
@@ -92,12 +130,10 @@ if not st.session_state.logado:
             if email in st.session_state.usuarios and st.session_state.usuarios[email]["senha"] == senha:
                 st.session_state.logado = True
                 st.session_state.usuario = email
-                st.success("Login realizado")
                 st.rerun()
             else:
                 st.error("Login inválido")
 
-    # CRIAR CONTA
     elif opcao == "Criar conta":
         novo_email = st.text_input("Novo email")
         nova_senha = st.text_input("Nova senha", type="password")
@@ -108,17 +144,14 @@ if not st.session_state.logado:
                     "senha": nova_senha,
                     "premium": False
                 }
-                st.success("Conta criada com sucesso!")
-            else:
-                st.warning("Preencha todos os campos")
+                st.success("Conta criada!")
 
-    # RECUPERAR SENHA
     elif opcao == "Esqueci senha":
         email_reset = st.text_input("Digite seu email")
 
-        if st.button("Recuperar senha"):
+        if st.button("Recuperar"):
             if email_reset in st.session_state.usuarios:
-                st.success("Link enviado (simulação)")
+                st.success("Recuperação enviada (simulação)")
             else:
                 st.error("Email não encontrado")
 
@@ -133,15 +166,13 @@ st.caption("Proteção contra golpes digitais")
 usuario = st.session_state.usuario
 premium = st.session_state.usuarios[usuario]["premium"]
 
-# =========================
 # PREMIUM
-# =========================
 st.subheader("💎 Premium")
 st.code("13996469617")
 st.link_button("📲 Enviar comprovante", "https://wa.me/5513996469617")
 
 # =========================
-# ANALISE
+# CENTRAL
 # =========================
 st.subheader("🔍 Central de Análise")
 texto = st.text_area("Cole mensagem suspeita")
@@ -194,9 +225,9 @@ st.metric("Suspeitos", st.session_state.suspeitos)
 st.metric("Alertas", st.session_state.alertas)
 
 if st.session_state.alertas > 0:
-    st.error("Ameaças detectadas")
+    st.error("🔴 Ameaças detectadas")
 else:
-    st.success("Seguro")
+    st.success("🟢 Ambiente seguro")
 
 # =========================
 # ADMIN
