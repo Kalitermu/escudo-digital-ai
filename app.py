@@ -7,32 +7,55 @@ import pytesseract
 import requests
 
 # =========================
-# 🎨 ESTILO AZUL CLARO
+# 🎨 ESTILO AZUL CLARO PRO
 # =========================
 st.set_page_config(page_title="Escudo Digital IA", layout="centered")
 
 st.markdown("""
 <style>
-body {
-    background: linear-gradient(180deg, #e6f0ff, #ffffff);
-}
 
+/* FUNDO */
 .stApp {
-    background: linear-gradient(180deg, #e6f0ff, #ffffff);
+    background: linear-gradient(180deg, #dbeafe, #ffffff);
 }
 
+/* TITULOS */
 h1, h2, h3 {
-    color: #0d47a1;
+    color: #0b3c8c;
+    font-weight: 700;
 }
 
+/* BOTÕES */
 .stButton>button {
-    background-color: #1e88e5;
+    background: linear-gradient(90deg, #1e88e5, #42a5f5);
     color: white;
+    border-radius: 12px;
+    height: 50px;
+    font-weight: bold;
+    border: none;
+}
+
+/* TEXTAREA */
+.stTextArea textarea {
+    background-color: #f0f7ff;
     border-radius: 10px;
 }
 
-.stTextArea textarea {
-    background-color: #f5faff;
+/* CARD */
+.block-container {
+    padding-top: 2rem;
+}
+
+/* CAIXAS */
+.stAlert {
+    border-radius: 12px;
+}
+
+/* PREMIUM BOX */
+code {
+    background-color: #e3f2fd !important;
+    color: #0d47a1 !important;
+    font-size: 18px;
 }
 
 </style>
@@ -88,6 +111,9 @@ def analisar_texto(texto):
         if "ALTO" in resultado:
             st.session_state.alertas += 1
 
+        if any(p in texto.lower() for p in ["pix", "senha", "urgente"]):
+            st.session_state.suspeitos += 1
+
         return resultado
 
     except:
@@ -133,7 +159,8 @@ if not st.session_state.logado:
 # =========================
 st.title("🛡️ Escudo Digital IA")
 st.caption("Proteção contra golpes digitais")
-st.markdown("### 🚨 Detecte golpes antes de perder dinheiro")
+
+st.markdown("## 🚨 Detecte golpes antes de perder dinheiro")
 
 # PREMIUM
 st.subheader("💎 Premium")
@@ -146,7 +173,7 @@ st.link_button("📲 Enviar comprovante", "https://wa.me/5513996469617")
 st.subheader("🔍 Central de Análise")
 texto = st.text_area("Cole mensagem suspeita")
 
-if st.button("Analisar"):
+if st.button("🚀 Analisar agora"):
     if texto:
         resultado = analisar_texto(texto)
 
@@ -170,7 +197,7 @@ if img:
     texto_img = pytesseract.image_to_string(imagem)
     st.text_area("Texto detectado", texto_img)
 
-    if st.button("Analisar imagem"):
+    if st.button("🔎 Analisar imagem"):
         st.success(analisar_texto(texto_img))
 
 # =========================
@@ -179,7 +206,7 @@ if img:
 st.subheader("🌍 OSINT - Análise de IP")
 ip = st.text_input("Digite IP")
 
-if st.button("Consultar OSINT"):
+if st.button("🌐 Consultar OSINT"):
     if ip:
         st.info(consultar_ip(ip))
 
@@ -199,21 +226,21 @@ st.text_area("Mensagem")
 # BIBLIOTECA
 # =========================
 st.subheader("📚 Biblioteca")
-st.write("- golpe_pix")
-st.write("- phishing")
-st.write("- whatsapp")
+st.write("- 💸 golpe_pix")
+st.write("- 🔐 phishing")
+st.write("- 📱 whatsapp")
 
 # =========================
 # SOC
 # =========================
-st.subheader("📊 SOC")
+st.subheader("📊 Painel SOC")
 
 st.metric("Eventos", st.session_state.eventos)
 st.metric("Suspeitos", st.session_state.suspeitos)
 st.metric("Alertas", st.session_state.alertas)
 
 if st.session_state.alertas > 0:
-    st.error("⚠️ Atenção")
+    st.error("⚠️ Ameaças detectadas")
 else:
     st.success("🟢 Ambiente seguro")
 
@@ -226,7 +253,7 @@ usuario = st.session_state.usuario
 premium = st.session_state.usuarios[usuario]["premium"]
 
 st.write(f"Usuário: {usuario}")
-st.write(f"Premium: {'✅' if premium else '❌'}")
+st.write(f"Premium: {'✅ Ativo' if premium else '❌ Não'}")
 
 if st.button("Ativar Premium"):
     st.session_state.usuarios[usuario]["premium"] = True
