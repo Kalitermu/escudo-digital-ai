@@ -1,9 +1,9 @@
+import streamlit as st
+import hashlib
+import json
 # =========================================================
 # 🔐 SEGURANÇA
 # =========================================================
-
-import hashlib
-
 ADMIN_EMAIL = "admin@escudo.com"
 
 def hash_senha(senha):
