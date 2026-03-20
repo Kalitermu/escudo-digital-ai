@@ -3,47 +3,53 @@ import streamlit as st
 # CONFIG
 st.set_page_config(page_title="Escudo Digital IA", layout="centered")
 
-# 🎨 ESTILO LIMPO (SEM BUG AZUL)
+# 🎨 ESTILO LIMPO
 st.markdown("""
 <style>
-html, body, [class*="css"]  {
+html, body {
     background: linear-gradient(135deg, #eef2ff, #f8fafc);
 }
-
-.block-container {
-    padding-top: 1.5rem;
-}
-
-h1, h2, h3 {
-    text-align: center;
-    color: #1e293b;
-}
-
-.stTextInput input, .stTextArea textarea {
-    border-radius: 10px;
-}
-
 .stButton button {
     width: 100%;
     height: 48px;
     border-radius: 10px;
-    font-size: 16px;
     background: linear-gradient(90deg, #2563eb, #1d4ed8);
     color: white;
     border: none;
 }
-
-.stButton button:hover {
-    background: linear-gradient(90deg, #1d4ed8, #1e40af);
-}
 </style>
 """, unsafe_allow_html=True)
 
-# USER
-email_user = "joseluizariel@gmail.com"
-premium = True
+# =========================
+# 🧠 SESSION LOGIN
+# =========================
+if "logado" not in st.session_state:
+    st.session_state.logado = False
 
-# HEADER
+# =========================
+# 🔐 LOGIN
+# =========================
+if not st.session_state.logado:
+    st.markdown("# 🔐 Login Escudo Digital")
+
+    email = st.text_input("Email")
+    senha = st.text_input("Senha", type="password")
+
+    if st.button("Entrar"):
+        if email == "joseluizariel@gmail.com" and senha == "123":
+            st.session_state.logado = True
+            st.session_state.email = email
+            st.success("Login realizado")
+            st.rerun()
+        else:
+            st.error("Login inválido")
+
+    st.stop()
+
+# =========================
+# 🛡️ APP (SÓ APARECE LOGADO)
+# =========================
+
 st.markdown("# 🛡️ Escudo Digital IA")
 st.caption("Proteção contra golpes digitais")
 
@@ -58,7 +64,7 @@ url = st.text_input("Digite URL suspeita")
 
 if st.button("Analisar domínio"):
     if "http" in url:
-        st.warning("⚠️ Verifique se o site é confiável")
+        st.warning("⚠️ Verifique segurança do site")
     else:
         st.error("🔴 URL suspeita")
 
@@ -68,17 +74,17 @@ img = st.file_uploader("Envie imagem", type=["png","jpg","jpeg"])
 
 if img:
     st.image(img)
-    st.warning("⚠️ Conteúdo suspeito detectado")
+    st.warning("⚠️ Possível golpe detectado")
 
 # 📧 EMAIL
 st.markdown("## 📧 Analisar email")
-email = st.text_area("Cole o email")
+email_text = st.text_area("Cole o email")
 
 if st.button("Analisar email"):
-    if "senha" in email.lower() or "urgente" in email.lower():
-        st.error("🔴 Possível phishing")
+    if "senha" in email_text.lower() or "urgente" in email_text.lower():
+        st.error("🔴 Phishing detectado")
     else:
-        st.success("🟢 Sem risco crítico")
+        st.success("🟢 Sem risco alto")
 
 # 📱 WHATSAPP
 st.markdown("## 📱 Golpe WhatsApp")
@@ -119,17 +125,17 @@ if st.button("Analisar INSS"):
     if "inss" in idoso.lower() or "benefício" in idoso.lower():
         st.error("⚠️ Golpe comum contra idosos")
     else:
-        st.success("🟢 Sem padrão crítico")
+        st.success("🟢 Sem padrão de golpe")
 
 # 📚 BIBLIOTECA
 st.markdown("## 📚 Biblioteca de golpes")
 st.markdown("""
-- 💸 golpe_pix — pedido urgente de dinheiro  
-- 🏦 emprestimo_falso — crédito fácil  
-- 🔐 phishing — roubo de senha  
-- ⚠️ extorsao — ameaça  
-- 📱 golpe_whatsapp — troca de número  
-- 👴 golpe_idoso — INSS  
+- 💸 golpe_pix  
+- 🏦 emprestimo_falso  
+- 🔐 phishing  
+- ⚠️ extorsao  
+- 📱 golpe_whatsapp  
+- 👴 golpe_idoso  
 """)
 
 # 📊 SOC
@@ -144,11 +150,10 @@ st.success("🟢 Ambiente seguro")
 
 # 🔧 ADMIN
 st.markdown("## 🔧 Admin")
-st.write("Usuário:", email_user)
-st.write("Premium:", "✅ Ativo" if premium else "❌ Não")
+st.write("Usuário:", st.session_state.email)
+st.write("Premium: ✅ Ativo")
 
-if st.button("Ativar Premium"):
-    st.success("Premium ativado")
-
-if st.button("Remover Premium"):
-    st.error("Premium removido")
+# 🚪 SAIR
+if st.button("Sair"):
+    st.session_state.logado = False
+    st.rerun()
