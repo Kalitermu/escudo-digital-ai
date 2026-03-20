@@ -2,15 +2,17 @@ import streamlit as st
 import hashlib
 import json
 import pandas as pd
+from PIL import Image
+import pytesseract
 
-st.set_page_config(page_title="Escudo Digital IA", layout="wide")
+st.set_page_config(layout="wide")
 
 # =========================
 # CONFIG
 # =========================
 USERS_FILE = "usuarios.json"
 ADMIN_EMAIL = "joseluizariel@gmail.com"
-PIX_CHAVE = "13996469617"
+PIX = "13996469617"
 
 # =========================
 # ESTILO
@@ -18,16 +20,15 @@ PIX_CHAVE = "13996469617"
 st.markdown("""
 <style>
 .stApp {
-    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+    background: linear-gradient(135deg,#dbeafe,#bfdbfe);
 }
-h1, h2, h3 {
-    color: #1e3a8a;
+h1,h2,h3 {
+    color:#1e3a8a;
 }
 .stButton>button {
-    background: linear-gradient(90deg, #2563eb, #1d4ed8);
-    color: white;
-    border-radius: 12px;
-    font-weight: bold;
+    background: linear-gradient(90deg,#2563eb,#1d4ed8);
+    color:white;
+    border-radius:12px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -35,71 +36,52 @@ h1, h2, h3 {
 # =========================
 # JSON
 # =========================
-def carregar_json(nome, padrao):
+def load():
     try:
-        with open(nome, "r") as f:
-            return json.load(f)
+        return json.load(open(USERS_FILE))
     except:
-        return padrao
+        return {}
 
-def salvar_json(nome, dados):
-    with open(nome, "w") as f:
-        json.dump(dados, f, indent=2)
+def save(data):
+    json.dump(data, open(USERS_FILE,"w"), indent=2)
 
-usuarios = carregar_json(USERS_FILE, {})
+usuarios = load()
 
 # =========================
 # SESSÃO
 # =========================
 if "logado" not in st.session_state:
     st.session_state.logado = False
-if "email_usuario" not in st.session_state:
-    st.session_state.email_usuario = ""
+if "email" not in st.session_state:
+    st.session_state.email = ""
 
 # =========================
 # FUNÇÕES
 # =========================
-def hash_senha(senha):
-    return hashlib.sha256(senha.encode()).hexdigest()
+def hash_senha(s):
+    return hashlib.sha256(s.encode()).hexdigest()
 
-def is_admin():
-    return st.session_state.email_usuario == ADMIN_EMAIL
-
-def verificar_limite():
-    if not usuarios[email]["premium"] and usuarios[email]["uso"] >= 7:
-        st.error("🚫 Limite grátis atingido")
-        st.stop()
-
-def usar():
-    usuarios[email]["uso"] += 1
-    salvar_json(USERS_FILE, usuarios)
-
-def analisar_texto(texto):
-    texto = texto.lower()
+def analisar(txt):
+    txt = txt.lower()
     risco = 0
-    tipo = []
+    tipos = []
 
-    if "pix" in texto:
-        risco += 30; tipo.append("Pix")
-    if "urgente" in texto or "agora" in texto:
-        risco += 20; tipo.append("Urgência")
-    if "senha" in texto or "login" in texto or "clique" in texto:
-        risco += 30; tipo.append("Phishing")
-    if "inss" in texto or "aposentadoria" in texto:
-        risco += 40; tipo.append("INSS")
-    if "empréstimo" in texto or "taxa" in texto:
-        risco += 30; tipo.append("Financeiro suspeito")
+    if "pix" in txt: risco+=30; tipos.append("Pix")
+    if "urgente" in txt: risco+=20; tipos.append("Urgência")
+    if "senha" in txt or "login" in txt: risco+=30; tipos.append("Phishing")
+    if "inss" in txt: risco+=40; tipos.append("Golpe INSS")
+    if "empréstimo" in txt: risco+=30; tipos.append("Empréstimo falso")
 
-    return risco, tipo
+    return risco, tipos
 
-def mostrar_score(risco):
-    st.progress(min(risco/100,1.0))
-    if risco >= 70:
-        st.error(f"🚨 ALTO RISCO ({risco}%)")
-    elif risco >= 40:
-        st.warning(f"⚠️ RISCO MÉDIO ({risco}%)")
+def score(r):
+    st.progress(min(r/100,1.0))
+    if r>=70:
+        st.error(f"🚨 ALTO RISCO ({r}%)")
+    elif r>=40:
+        st.warning(f"⚠️ RISCO MÉDIO ({r}%)")
     else:
-        st.success(f"✅ BAIXO RISCO ({risco}%)")
+        st.success(f"✅ BAIXO RISCO ({r}%)")
 
 # =========================
 # LOGIN
@@ -107,53 +89,42 @@ def mostrar_score(risco):
 if not st.session_state.logado:
 
     st.title("🛡️ Escudo Digital IA")
-    st.caption("Proteção inteligente contra golpes")
 
-    col1, col2, col3 = st.columns([1,2,1])
+    op = st.selectbox("Acessar",["Entrar","Criar conta"])
+    email = st.text_input("Email")
+    senha = st.text_input("Senha", type="password")
 
-    with col2:
-        opcao = st.selectbox("Acessar", ["Entrar", "Criar conta"])
-        email = st.text_input("Email")
-        senha = st.text_input("Senha", type="password")
-
-        if st.button("Continuar", use_container_width=True):
-
-            if opcao == "Entrar":
-                if email in usuarios and usuarios[email]["senha"] == hash_senha(senha):
-                    st.session_state.logado = True
-                    st.session_state.email_usuario = email
-                    st.rerun()
-                else:
-                    st.error("Login inválido")
-
+    if st.button("Continuar"):
+        if op=="Entrar":
+            if email in usuarios and usuarios[email]["senha"]==hash_senha(senha):
+                st.session_state.logado=True
+                st.session_state.email=email
+                st.rerun()
             else:
-                usuarios[email] = {
-                    "senha": hash_senha(senha),
-                    "uso": 0,
-                    "premium": False
-                }
-                salvar_json(USERS_FILE, usuarios)
-                st.success("Conta criada")
+                st.error("Erro login")
+
+        else:
+            usuarios[email]={"senha":hash_senha(senha),"uso":0,"premium":False}
+            save(usuarios)
+            st.success("Conta criada")
 
     st.stop()
 
 # =========================
 # USUÁRIO
 # =========================
-email = st.session_state.email_usuario
+email = st.session_state.email
 
 st.sidebar.success(f"👤 {email}")
-st.sidebar.info(f"📊 Usos: {usuarios[email]['uso']} / 7 grátis")
-
 st.sidebar.markdown("## 💎 Premium")
-st.sidebar.code(PIX_CHAVE)
+st.sidebar.code(PIX)
 
 st.sidebar.markdown(
-    f"[📲 Enviar comprovante](https://wa.me/55{PIX_CHAVE}?text=Olá,%20paguei%20o%20Escudo%20Digital%20Premium)"
+    f"[📲 Enviar comprovante](https://wa.me/55{PIX}?text=paguei%20premium)"
 )
 
 if st.sidebar.button("Sair"):
-    st.session_state.logado = False
+    st.session_state.logado=False
     st.rerun()
 
 # =========================
@@ -161,63 +132,97 @@ if st.sidebar.button("Sair"):
 # =========================
 st.title("🛡️ Central de Análise")
 
-entrada = st.text_area("Cole qualquer mensagem suspeita")
+# =========================
+# DOMÍNIO
+# =========================
+st.header("🔍 Scanner de domínio")
+url = st.text_input("Digite URL")
 
-if st.button("🔍 Analisar agora", use_container_width=True):
+if st.button("Analisar domínio"):
+    if url:
+        st.success("Dominio analisado (simulação)")
 
-    if entrada:
-        verificar_limite()
-        usar()
+# =========================
+# PRINT
+# =========================
+st.header("📷 Analisar print de golpe")
 
-        risco, tipo = analisar_texto(entrada)
+img = st.file_uploader("Envie imagem", type=["png","jpg"])
 
-        mostrar_score(risco)
+if img:
+    image = Image.open(img)
+    st.image(image)
 
-        st.markdown("### 🔎 Tipos detectados")
-        for t in tipo:
-            st.markdown(f"- ⚠️ {t}")
-    else:
-        st.warning("Digite algo")
+    if st.button("Analisar imagem"):
+        texto = pytesseract.image_to_string(image)
+        st.text_area("Texto detectado", texto)
+
+        risco, tipos = analisar(texto)
+        score(risco)
+
+# =========================
+# EMAIL
+# =========================
+st.header("📧 Analisar email")
+email_txt = st.text_area("Cole email")
+
+if st.button("Analisar email"):
+    risco, tipos = analisar(email_txt)
+    score(risco)
+
+# =========================
+# WHATS
+# =========================
+st.header("📱 Golpe WhatsApp")
+zap = st.text_area("Cole conversa")
+
+if st.button("Analisar WhatsApp"):
+    risco, tipos = analisar(zap)
+    score(risco)
+
+# =========================
+# IDOSO
+# =========================
+st.header("👴 Golpe contra idoso")
+idoso = st.text_area("Mensagem")
+
+if st.button("Analisar golpe idoso"):
+    risco, tipos = analisar(idoso)
+    score(risco)
 
 # =========================
 # BIBLIOTECA
 # =========================
-st.header("📚 Tipos de golpes")
+st.header("📚 Biblioteca de golpes")
 
 st.markdown("""
-- 💸 Pix falso  
-- 🏦 Empréstimo falso  
-- 🔐 Phishing  
-- ⚠️ Extorsão  
-- 📱 WhatsApp clonado  
-- 👴 Golpe INSS  
+- 💸 golpe_pix  
+- 🏦 emprestimo_falso  
+- 🔐 phishing  
+- ⚠️ extorsao  
+- 📱 whatsapp  
+- 👴 golpe_idoso  
 """)
+
+# =========================
+# SOC
+# =========================
+st.header("📊 Painel SOC")
+
+st.metric("Eventos",0)
+st.metric("Suspeitos",0)
+st.metric("Alertas",0)
+
+st.success("🟢 Ambiente seguro")
 
 # =========================
 # ADMIN
 # =========================
-if is_admin():
-    st.header("🔧 Painel Admin")
+if email == ADMIN_EMAIL:
+    st.header("🔧 Admin")
 
     df = pd.DataFrame([
-        {"Email": u, "Uso": d["uso"], "Premium": d["premium"]}
-        for u, d in usuarios.items()
+        {"Email":u,"Uso":d["uso"],"Premium":d["premium"]}
+        for u,d in usuarios.items()
     ])
-
     st.dataframe(df)
-
-    user_sel = st.selectbox("Selecionar usuário", list(usuarios.keys()))
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("Ativar Premium"):
-            usuarios[user_sel]["premium"] = True
-            salvar_json(USERS_FILE, usuarios)
-            st.success("Ativado")
-
-    with col2:
-        if st.button("Remover Premium"):
-            usuarios[user_sel]["premium"] = False
-            salvar_json(USERS_FILE, usuarios)
-            st.warning("Removido")
