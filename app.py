@@ -55,7 +55,7 @@ if not st.session_state.logado:
             }
             st.success("Conta criada com sucesso!")
 
-    # RECUPERAR
+    # RECUPERAR SENHA
     if opcao == "Esqueci senha":
         email_reset = st.text_input("Digite seu email")
 
@@ -70,7 +70,6 @@ if not st.session_state.logado:
 # =========================
 # 🛡️ APP PRINCIPAL
 # =========================
-
 st.title("🛡️ Escudo Digital IA")
 st.caption("Proteção contra golpes digitais")
 
@@ -78,14 +77,14 @@ usuario = st.session_state.email
 premium = st.session_state.usuarios[usuario]["premium"]
 
 # =========================
-# 💎 PREMIUM (MANTIDO)
+# 💎 PREMIUM
 # =========================
 st.subheader("💎 Premium")
 st.code("13996469617")
 st.link_button("📲 Enviar comprovante", "https://wa.me/5513996469617?text=paguei%20premium")
 
 # =========================
-# 🧠 IA DE ANÁLISE (UPGRADE)
+# 🧠 IA DE ANÁLISE
 # =========================
 def analisar(msg):
     risco = 0
@@ -111,7 +110,7 @@ def analisar(msg):
     return min(risco, 100), palavras
 
 # =========================
-# 🔍 CENTRAL (MANTIDO + MELHORADO)
+# 🔍 CENTRAL
 # =========================
 st.subheader("🔍 Central de Análise")
 
@@ -140,7 +139,7 @@ if st.button("🔎 Analisar agora"):
     st.write("Detectado:", palavras)
 
 # =========================
-# 📷 PRINT (MANTIDO + IA)
+# 📷 PRINT
 # =========================
 st.subheader("📷 Analisar print de golpe")
 
@@ -151,7 +150,7 @@ if img:
     st.warning("⚠️ Possível golpe detectado na imagem (simulação IA)")
 
 # =========================
-# 📧 EMAIL (MANTIDO)
+# 📧 EMAIL
 # =========================
 st.subheader("📧 Analisar email")
 
@@ -162,7 +161,7 @@ if st.button("Analisar email"):
     st.warning("⚠️ Email suspeito detectado")
 
 # =========================
-# 📱 WHATSAPP (MANTIDO)
+# 📱 WHATSAPP
 # =========================
 st.subheader("📱 Golpe WhatsApp")
 
@@ -173,7 +172,7 @@ if st.button("Analisar WhatsApp"):
     st.warning("⚠️ Possível golpe WhatsApp")
 
 # =========================
-# 👴 IDOSO (MANTIDO)
+# 👴 IDOSO
 # =========================
 st.subheader("👴 Golpe contra idoso")
 
@@ -189,7 +188,7 @@ if st.button("Analisar INSS"):
         st.success("Sem risco")
 
 # =========================
-# 📚 BIBLIOTECA (IGUAL)
+# 📚 BIBLIOTECA
 # =========================
 st.subheader("📚 Biblioteca de golpes")
 
@@ -203,7 +202,7 @@ st.markdown("""
 """)
 
 # =========================
-# 📊 SOC (AGORA FUNCIONA)
+# 📊 SOC
 # =========================
 st.subheader("📊 Painel SOC")
 
@@ -217,13 +216,20 @@ else:
     st.error("🔴 Ameaças detectadas")
 
 # =========================
-# 🔧 ADMIN (IGUAL)
+# 🔧 ADMIN (MELHORADO)
 # =========================
 st.subheader("🔧 Admin")
 
 st.write("Usuário:", usuario)
 st.write("Premium:", "✅ Ativo" if premium else "❌ Não")
 
+# 👥 LISTA DE USUÁRIOS (NOVO)
+st.write("### 👥 Usuários cadastrados")
+
+for email, dados in st.session_state.usuarios.items():
+    st.write(f"📧 {email} | Premium: {'✅' if dados['premium'] else '❌'}")
+
+# BOTÕES
 if st.button("Ativar Premium"):
     st.session_state.usuarios[usuario]["premium"] = True
     st.success("Premium ativado")
