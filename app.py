@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import requests
 from openai import OpenAI
 from PIL import Image
 import pytesseract
@@ -35,7 +36,7 @@ if "suspeitos" not in st.session_state:
     st.session_state.suspeitos = 0
 
 # =========================
-# IA + OFFLINE (MELHORADO)
+# IA + OFFLINE
 # =========================
 def analisar_texto(texto):
     try:
@@ -69,49 +70,54 @@ Responda:
         return resultado
 
     except:
-        # 🔥 MODO OFFLINE INTELIGENTE
+        # 🔥 fallback offline
         texto_lower = texto.lower()
-
         risco = "BAIXO"
         score = 10
         motivos = []
 
         if "pix" in texto_lower:
-            risco = "ALTO"
-            score = 90
-            motivos.append("Pedido de PIX")
-
+            risco = "ALTO"; score = 90; motivos.append("PIX")
         if "urgente" in texto_lower:
-            risco = "ALTO"
-            score = max(score, 85)
-            motivos.append("Urgência")
-
+            risco = "ALTO"; score = 85; motivos.append("Urgência")
         if "senha" in texto_lower or "código" in texto_lower:
-            risco = "ALTO"
-            score = 95
-            motivos.append("Solicitação de dados sensíveis")
-
+            risco = "ALTO"; score = 95; motivos.append("Dados sensíveis")
         if "link" in texto_lower:
-            risco = "MÉDIO"
-            score = max(score, 60)
-            motivos.append("Link suspeito")
-
-        if any(p in texto_lower for p in ["inss","benefício"]):
-            risco = "ALTO"
-            score = 92
-            motivos.append("Possível golpe INSS")
+            risco = "MÉDIO"; score = 60; motivos.append("Link")
 
         st.session_state.eventos += 1
-
         if risco == "ALTO":
             st.session_state.alertas += 1
 
         return f"""
 🔎 Risco: {risco}
 📊 Score: {score}
-⚠️ Motivo: {', '.join(motivos) if motivos else 'Nenhum forte indício'}
-💡 Recomendação: Não envie dados e confirme a origem
+⚠️ Motivo: {', '.join(motivos)}
+💡 Recomendação: Não envie dados
 """
+
+# =========================
+# 🌍 OSINT REAL
+# =========================
+def osint_ip(ip):
+    try:
+        url = f"http://ip-api.com/json/{ip}"
+        res = requests.get(url).json()
+
+        if res["status"] == "success":
+            return f"""
+🌍 País: {res['country']}
+🏙️ Cidade: {res['city']}
+📡 ISP: {res['isp']}
+🗺️ Região: {res['regionName']}
+📍 Latitude: {res['lat']}
+📍 Longitude: {res['lon']}
+"""
+        else:
+            return "IP não encontrado"
+
+    except:
+        return "Erro OSINT"
 
 # =========================
 # LOGIN / CADASTRO
@@ -182,7 +188,7 @@ if st.button("Analisar"):
         st.success(analisar_texto(texto))
 
 # =========================
-# PRINT
+# 📷 PRINT
 # =========================
 st.subheader("📷 Analisar print")
 img = st.file_uploader("Envie imagem")
@@ -194,6 +200,17 @@ if img:
 
     if st.button("Analisar imagem"):
         st.success(analisar_texto(texto_img))
+
+# =========================
+# 🌍 OSINT BLOCO
+# =========================
+st.subheader("🌍 OSINT - Análise de IP")
+
+ip_input = st.text_input("Digite IP")
+
+if st.button("Consultar OSINT"):
+    if ip_input:
+        st.info(osint_ip(ip_input))
 
 # =========================
 # OUTROS
