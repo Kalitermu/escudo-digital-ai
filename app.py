@@ -48,16 +48,13 @@ def is_admin():
     )
 
 # =========================
-# ESTILO (AZUL)
+# ESTILO AZUL
 # =========================
 st.markdown("""
 <style>
 .stApp {
     background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
     color: white;
-}
-button {
-    border-radius: 10px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -80,7 +77,7 @@ if not st.session_state.logado:
             if email in usuarios and usuarios[email]["senha"] == hash_senha(senha):
                 st.session_state.logado = True
                 st.session_state.email_usuario = email
-                st.success("Login feito")
+                st.success("Login realizado")
                 st.rerun()
             else:
                 st.error("Login inválido")
@@ -119,9 +116,7 @@ if st.sidebar.button("Sair"):
 # PAGAMENTO PIX
 # =========================
 st.sidebar.markdown("## 💎 Premium")
-
-st.sidebar.write("🔐 Libere tudo por apenas R$ 9,90")
-
+st.sidebar.write("Libere tudo por R$ 9,90")
 st.sidebar.code(PIX_CHAVE)
 
 st.sidebar.markdown(
@@ -142,6 +137,36 @@ def usar():
     salvar_json(USERS_FILE, usuarios)
 
 # =========================
+# FUNÇÃO DE ANÁLISE
+# =========================
+def analisar_texto(texto):
+    texto = texto.lower()
+    risco = 0
+    tipo = []
+
+    if "pix" in texto:
+        risco += 30
+        tipo.append("Golpe Pix")
+
+    if "urgente" in texto or "agora" in texto:
+        risco += 20
+        tipo.append("Urgência")
+
+    if "senha" in texto or "login" in texto:
+        risco += 30
+        tipo.append("Phishing")
+
+    if "inss" in texto or "aposentadoria" in texto:
+        risco += 40
+        tipo.append("Golpe INSS")
+
+    if "empréstimo" in texto or "consignado" in texto:
+        risco += 30
+        tipo.append("Empréstimo falso")
+
+    return risco, tipo
+
+# =========================
 # SISTEMA
 # =========================
 st.title("🛡️ Escudo Digital IA")
@@ -151,37 +176,66 @@ st.header("🔍 Scanner de domínio")
 url = st.text_input("Digite URL")
 
 if st.button("Analisar domínio"):
-    verificar_limite()
-    usar()
-    st.success("Domínio analisado (simulação)")
+    if url:
+        verificar_limite()
+        usar()
+        risco, tipo = analisar_texto(url)
+        st.write(f"Risco: {risco}%")
+        st.write(tipo)
+    else:
+        st.warning("Digite algo")
 
 # 📧 EMAIL
 st.header("📧 Email suspeito")
 email_texto = st.text_area("Cole o email")
 
 if st.button("Analisar email"):
-    verificar_limite()
-    usar()
-    st.success("Email analisado (simulação)")
+    if email_texto:
+        verificar_limite()
+        usar()
+        risco, tipo = analisar_texto(email_texto)
+        st.write(f"Risco: {risco}%")
+        st.write(tipo)
+    else:
+        st.warning("Digite algo")
 
 # 📱 WHATSAPP
 st.header("📱 Golpe WhatsApp")
 zap = st.text_area("Cole conversa")
 
 if st.button("Analisar WhatsApp"):
-    verificar_limite()
-    usar()
-    st.success("Conversa analisada (simulação)")
+    if zap:
+        verificar_limite()
+        usar()
+        risco, tipo = analisar_texto(zap)
+        st.write(f"Risco: {risco}%")
+        st.write(tipo)
+    else:
+        st.warning("Digite algo")
+
+# 👴 IDOSO
+st.header("👴 Golpe contra idoso")
+idoso = st.text_area("Mensagem suspeita")
+
+if st.button("Analisar golpe idoso"):
+    if idoso:
+        verificar_limite()
+        usar()
+        risco, tipo = analisar_texto(idoso)
+        st.write(f"Risco: {risco}%")
+        st.write(tipo)
+    else:
+        st.warning("Digite algo")
 
 # 📚 BIBLIOTECA
 st.header("📚 Biblioteca de golpes")
-
 st.write("""
-• golpe_pix  
-• emprestimo_falso  
-• phishing  
-• extorsao  
-• whatsapp  
+• golpe_pix — pedido urgente  
+• emprestimo_falso — crédito fácil  
+• phishing — roubo de senha  
+• extorsao — ameaça  
+• golpe_whatsapp — troca de número  
+• golpe_idoso — INSS  
 """)
 
 # =========================
@@ -205,9 +259,9 @@ if is_admin():
     if st.button("Ativar Premium"):
         usuarios[user_sel]["premium"] = True
         salvar_json(USERS_FILE, usuarios)
-        st.success("Premium ativado")
+        st.success("Ativado")
 
     if st.button("Remover Premium"):
         usuarios[user_sel]["premium"] = False
         salvar_json(USERS_FILE, usuarios)
-        st.warning("Premium removido")
+        st.warning("Removido")
