@@ -4,6 +4,32 @@ import requests
 from openai import OpenAI
 from PIL import Image
 import pytesseract
+import folium
+from streamlit_folium import st_folium
+
+# =========================
+# 🎨 ESTILO (FUNDO AZUL)
+# =========================
+st.markdown("""
+<style>
+.stApp {
+    background: linear-gradient(135deg, #0f172a, #1e3a8a);
+    color: white;
+}
+h1, h2, h3, h4, h5 {
+    color: #e0f2fe;
+}
+.stTextInput input, .stTextArea textarea {
+    background-color: #1e293b;
+    color: white;
+}
+.stButton button {
+    background-color: #2563eb;
+    color: white;
+    border-radius: 10px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # =========================
 # CONFIG IA
@@ -43,25 +69,11 @@ def analisar_texto(texto):
         resposta = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {
-                    "role": "system",
-                    "content": """
-Você é especialista em fraudes digitais (SOC).
-
-Responda:
-
-🔎 Risco:
-📊 Score:
-⚠️ Motivo:
-💡 Recomendação:
-"""
-                },
+                {"role": "system", "content": "Analise golpes e classifique risco"},
                 {"role": "user", "content": texto}
             ]
         )
-
-        resultado = resposta.choices[0].message.content.strip()
-
+        resultado = resposta.choices[0].message.content
         st.session_state.eventos += 1
 
         if "ALTO" in resultado:
@@ -70,54 +82,52 @@ Responda:
         return resultado
 
     except:
-        # 🔥 fallback offline
         texto_lower = texto.lower()
         risco = "BAIXO"
         score = 10
-        motivos = []
 
         if "pix" in texto_lower:
-            risco = "ALTO"; score = 90; motivos.append("PIX")
-        if "urgente" in texto_lower:
-            risco = "ALTO"; score = 85; motivos.append("Urgência")
-        if "senha" in texto_lower or "código" in texto_lower:
-            risco = "ALTO"; score = 95; motivos.append("Dados sensíveis")
-        if "link" in texto_lower:
-            risco = "MÉDIO"; score = 60; motivos.append("Link")
+            risco = "ALTO"; score = 90
+        elif "urgente" in texto_lower:
+            risco = "ALTO"; score = 85
+        elif "senha" in texto_lower:
+            risco = "ALTO"; score = 95
+        elif "link" in texto_lower:
+            risco = "MÉDIO"; score = 60
 
         st.session_state.eventos += 1
+
         if risco == "ALTO":
             st.session_state.alertas += 1
 
-        return f"""
-🔎 Risco: {risco}
-📊 Score: {score}
-⚠️ Motivo: {', '.join(motivos)}
-💡 Recomendação: Não envie dados
-"""
+        return f"🔎 Risco: {risco}\n📊 Score: {score}"
 
 # =========================
-# 🌍 OSINT REAL
+# OSINT REAL + MAPA
 # =========================
 def osint_ip(ip):
     try:
-        url = f"http://ip-api.com/json/{ip}"
-        res = requests.get(url).json()
+        res = requests.get(f"http://ip-api.com/json/{ip}").json()
 
         if res["status"] == "success":
-            return f"""
-🌍 País: {res['country']}
-🏙️ Cidade: {res['city']}
-📡 ISP: {res['isp']}
-🗺️ Região: {res['regionName']}
-📍 Latitude: {res['lat']}
-📍 Longitude: {res['lon']}
-"""
+            lat = res["lat"]
+            lon = res["lon"]
+
+            st.success("Resultado OSINT")
+            st.write(f"🌍 País: {res['country']}")
+            st.write(f"🏙️ Cidade: {res['city']}")
+            st.write(f"📡 ISP: {res['isp']}")
+
+            # MAPA
+            mapa = folium.Map(location=[lat, lon], zoom_start=10)
+            folium.Marker([lat, lon], tooltip="Localização").add_to(mapa)
+            st_folium(mapa, width=300, height=300)
+
         else:
-            return "IP não encontrado"
+            st.error("IP não encontrado")
 
     except:
-        return "Erro OSINT"
+        st.error("Erro OSINT")
 
 # =========================
 # LOGIN / CADASTRO
@@ -145,21 +155,17 @@ if not st.session_state.logado:
         nova_senha = st.text_input("Nova senha", type="password")
 
         if st.button("Cadastrar"):
-            if novo_email and nova_senha:
-                st.session_state.usuarios[novo_email] = {
-                    "senha": nova_senha,
-                    "premium": False
-                }
-                st.success("Conta criada!")
+            st.session_state.usuarios[novo_email] = {
+                "senha": nova_senha,
+                "premium": False
+            }
+            st.success("Conta criada!")
 
     elif opcao == "Esqueci senha":
         email_reset = st.text_input("Digite seu email")
 
         if st.button("Recuperar"):
-            if email_reset in st.session_state.usuarios:
-                st.success("Recuperação enviada (simulação)")
-            else:
-                st.error("Email não encontrado")
+            st.success("Recuperação enviada (simulação)")
 
     st.stop()
 
@@ -185,10 +191,13 @@ texto = st.text_area("Cole mensagem suspeita")
 
 if st.button("Analisar"):
     if texto:
-        st.success(analisar_texto(texto))
+        if premium:
+            st.success(analisar_texto(texto))
+        else:
+            st.warning("🔒 Apenas Premium")
 
 # =========================
-# 📷 PRINT
+# PRINT
 # =========================
 st.subheader("📷 Analisar print")
 img = st.file_uploader("Envie imagem")
@@ -202,15 +211,14 @@ if img:
         st.success(analisar_texto(texto_img))
 
 # =========================
-# 🌍 OSINT BLOCO
+# OSINT
 # =========================
 st.subheader("🌍 OSINT - Análise de IP")
-
 ip_input = st.text_input("Digite IP")
 
 if st.button("Consultar OSINT"):
     if ip_input:
-        st.info(osint_ip(ip_input))
+        osint_ip(ip_input)
 
 # =========================
 # OUTROS
@@ -233,18 +241,22 @@ st.write("- phishing")
 st.write("- whatsapp")
 
 # =========================
-# SOC
+# SOC DASHBOARD
 # =========================
 st.subheader("📊 SOC")
 
-st.metric("Eventos", st.session_state.eventos)
-st.metric("Suspeitos", st.session_state.suspeitos)
-st.metric("Alertas", st.session_state.alertas)
+col1, col2, col3 = st.columns(3)
 
-if st.session_state.alertas > 0:
-    st.error("🔴 Ameaças detectadas")
+col1.metric("Eventos", st.session_state.eventos)
+col2.metric("Suspeitos", st.session_state.suspeitos)
+col3.metric("Alertas", st.session_state.alertas)
+
+if st.session_state.alertas > 3:
+    st.error("🚨 Alto risco")
+elif st.session_state.alertas > 0:
+    st.warning("⚠️ Atenção")
 else:
-    st.success("🟢 Ambiente seguro")
+    st.success("🟢 Seguro")
 
 # =========================
 # ADMIN
@@ -270,5 +282,5 @@ if st.button("Sair"):
 st.subheader("👥 Usuários")
 
 for u in st.session_state.usuarios:
-    status = "✅" if st.session_state.usuarios[u]["premium"] else "❌"
-    st.write(f"{u} | {status}")
+    status = "🟢 Premium" if st.session_state.usuarios[u]["premium"] else "⚪ Free"
+    st.write(f"{u} — {status}")
