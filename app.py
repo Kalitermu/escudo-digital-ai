@@ -2,12 +2,14 @@ import streamlit as st
 import hashlib
 import json
 import pandas as pd
+from datetime import datetime, timedelta
 
 # =========================
 # CONFIG
 # =========================
 USERS_FILE = "usuarios.json"
 ADMIN_EMAIL = "admin@escudo.com"
+LIMITE_GRATIS = 7
 
 # =========================
 # JSON
@@ -47,6 +49,27 @@ def is_admin():
     )
 
 # =========================
+# PREMIUM
+# =========================
+def premium_ativo():
+    if not st.session_state.logado:
+        return False
+
+    user = usuarios.get(st.session_state.email_usuario)
+
+    if user.get("premium"):
+        if "premium_expira" in user:
+            data = datetime.strptime(user["premium_expira"], "%Y-%m-%d")
+            return datetime.now() <= data
+        return True
+
+    return False
+
+def uso_restante():
+    user = usuarios.get(st.session_state.email_usuario)
+    return max(0, LIMITE_GRATIS - user.get("uso", 0))
+
+# =========================
 # SIDEBAR LOGIN
 # =========================
 st.sidebar.title("👤 Conta")
@@ -60,17 +83,18 @@ opcao = st.sidebar.selectbox(
 # LOGIN
 # =========================
 if opcao == "Entrar":
-    email_login = st.sidebar.text_input("Email", key="login_email")
-    senha_login = st.sidebar.text_input("Senha", type="password", key="login_senha")
+    email_login = st.sidebar.text_input("Email")
+    senha_login = st.sidebar.text_input("Senha", type="password")
 
     if st.sidebar.button("Entrar"):
         if not email_login or not senha_login:
-            st.sidebar.warning("Preencha todos os campos")
+            st.sidebar.warning("Preencha tudo")
+
         elif email_login in usuarios:
             if usuarios[email_login]["senha"] == hash_senha(senha_login):
                 st.session_state.logado = True
                 st.session_state.email_usuario = email_login
-                st.sidebar.success("✅ Login realizado")
+                st.sidebar.success("Login OK")
                 st.rerun()
             else:
                 st.sidebar.error("Senha incorreta")
@@ -81,18 +105,18 @@ if opcao == "Entrar":
 # CRIAR CONTA
 # =========================
 elif opcao == "Criar conta":
-    novo_email = st.sidebar.text_input("Novo email", key="novo_email")
-    nova_senha = st.sidebar.text_input("Nova senha", type="password", key="nova_senha")
+    novo_email = st.sidebar.text_input("Email")
+    nova_senha = st.sidebar.text_input("Senha", type="password")
 
     if st.sidebar.button("Criar conta"):
         if not novo_email or not nova_senha:
-            st.sidebar.warning("Preencha todos os campos")
+            st.sidebar.warning("Preencha tudo")
 
         elif novo_email == ADMIN_EMAIL:
             st.sidebar.error("Email reservado")
 
         elif novo_email in usuarios:
-            st.sidebar.warning("Conta já existe")
+            st.sidebar.warning("Já existe")
 
         else:
             usuarios[novo_email] = {
@@ -105,23 +129,23 @@ elif opcao == "Criar conta":
             st.session_state.logado = True
             st.session_state.email_usuario = novo_email
 
-            st.sidebar.success("✅ Conta criada!")
+            st.sidebar.success("Conta criada!")
             st.rerun()
 
 # =========================
 # RECUPERAR SENHA
 # =========================
 elif opcao == "Recuperar senha":
-    email_rec = st.sidebar.text_input("Email", key="rec_email")
-    nova_senha = st.sidebar.text_input("Nova senha", type="password", key="rec_senha")
+    email_rec = st.sidebar.text_input("Email")
+    nova_senha = st.sidebar.text_input("Nova senha", type="password")
 
-    if st.sidebar.button("Redefinir senha"):
+    if st.sidebar.button("Redefinir"):
         if email_rec in usuarios:
             usuarios[email_rec]["senha"] = hash_senha(nova_senha)
             salvar_json(USERS_FILE, usuarios)
-            st.sidebar.success("🔑 Senha atualizada!")
+            st.sidebar.success("Senha atualizada")
         else:
-            st.sidebar.error("Email não encontrado")
+            st.sidebar.error("Email não existe")
 
 # =========================
 # STATUS
@@ -129,27 +153,31 @@ elif opcao == "Recuperar senha":
 if st.session_state.logado:
     st.sidebar.success(f"👤 {st.session_state.email_usuario}")
 
+    if premium_ativo():
+        st.sidebar.success("💎 Premium ativo")
+    else:
+        st.sidebar.info(f"Restam {uso_restante()} análises grátis")
+
     if st.sidebar.button("Sair"):
         st.session_state.logado = False
         st.session_state.email_usuario = ""
         st.rerun()
 else:
-    st.sidebar.info("Entre ou crie uma conta")
+    st.sidebar.info("Faça login")
 
 # =========================
-# PAINEL ADMIN
+# ADMIN
 # =========================
 if is_admin():
     st.sidebar.markdown("## 🔧 Admin")
 
     pagina = st.sidebar.selectbox(
         "Painel",
-        ["Usuários", "Premium", "Resetar Senha", "Excluir"]
+        ["Usuários", "Premium", "Resetar", "Excluir"]
     )
 
-    # LISTAR
     if pagina == "Usuários":
-        st.title("👥 Usuários")
+        st.title("Usuários")
 
         if usuarios:
             lista = []
@@ -157,32 +185,35 @@ if is_admin():
                 lista.append({
                     "Email": email,
                     "Uso": dados.get("uso", 0),
-                    "Premium": dados.get("premium", False)
+                    "Premium": dados.get("premium", False),
+                    "Expira": dados.get("premium_expira", "-")
                 })
 
             st.dataframe(pd.DataFrame(lista))
         else:
             st.info("Nenhum usuário")
 
-    # PREMIUM
     elif pagina == "Premium":
-        st.title("💎 Premium")
+        st.title("Gerenciar Premium")
 
-        email_sel = st.selectbox("Usuário", list(usuarios.keys()))
+        email = st.selectbox("Usuário", list(usuarios.keys()))
 
-        if st.button("Ativar"):
-            usuarios[email_sel]["premium"] = True
+        if st.button("Ativar 30 dias"):
+            usuarios[email]["premium"] = True
+            usuarios[email]["premium_expira"] = (
+                datetime.now() + timedelta(days=30)
+            ).strftime("%Y-%m-%d")
+
             salvar_json(USERS_FILE, usuarios)
-            st.success("Ativado")
+            st.success("Premium ativado")
 
         if st.button("Remover"):
-            usuarios[email_sel]["premium"] = False
+            usuarios[email]["premium"] = False
             salvar_json(USERS_FILE, usuarios)
             st.warning("Removido")
 
-    # RESET
-    elif pagina == "Resetar Senha":
-        st.title("🔑 Reset")
+    elif pagina == "Resetar":
+        st.title("Reset senha")
 
         email = st.selectbox("Usuário", list(usuarios.keys()))
         nova = st.text_input("Nova senha", type="password")
@@ -192,9 +223,8 @@ if is_admin():
             salvar_json(USERS_FILE, usuarios)
             st.success("Atualizado")
 
-    # EXCLUIR
     elif pagina == "Excluir":
-        st.title("🗑️ Excluir")
+        st.title("Excluir usuário")
 
         email = st.selectbox("Usuário", list(usuarios.keys()))
 
@@ -212,6 +242,19 @@ if is_admin():
 st.title("🛡️ Escudo Digital IA")
 
 if not st.session_state.logado:
-    st.warning("Faça login para usar o sistema")
+    st.warning("Faça login")
 else:
     st.success("Sistema ativo 🚀")
+
+    # BLOQUEIO FREE
+    if not premium_ativo():
+        if uso_restante() <= 0:
+            st.error("🚫 Limite atingido")
+            st.stop()
+
+    # BOTÃO EXEMPLO (simula uso)
+    if st.button("🔎 Fazer análise"):
+        usuarios[st.session_state.email_usuario]["uso"] += 1
+        salvar_json(USERS_FILE, usuarios)
+
+        st.success("Análise feita!")
