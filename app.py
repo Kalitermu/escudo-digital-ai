@@ -13,7 +13,7 @@ import requests
 st.set_page_config(page_title="Escudo Digital IA", layout="centered")
 
 # =========================
-# 🎨 ESTILO MELHORADO
+# 🎨 ESTILO
 # =========================
 st.markdown("""
 <style>
@@ -32,33 +32,52 @@ h1, h2, h3 {
 }
 .stTextArea textarea {
     background-color: #f5faff;
-    border-radius: 10px;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
-# 🔐 HASH
+# 🔐 HASH SENHA
 # =========================
 def hash_senha(senha):
     return hashlib.sha256(senha.encode()).hexdigest()
 
 # =========================
-# 💾 BANCO
+# 📂 ARQUIVOS
 # =========================
 ARQ_USUARIOS = "usuarios.json"
+ARQ_LOGS = "logs.json"
+ARQ_PAGAMENTOS = "pagamentos.json"
 
-def carregar_usuarios():
-    if os.path.exists(ARQ_USUARIOS):
-        with open(ARQ_USUARIOS, "r") as f:
+def carregar_json(arq):
+    if os.path.exists(arq):
+        with open(arq, "r") as f:
             return json.load(f)
-    return {}
+    return []
 
-def salvar_usuarios(dados):
-    with open(ARQ_USUARIOS, "w") as f:
+def salvar_json(arq, dados):
+    with open(arq, "w") as f:
         json.dump(dados, f, indent=4)
 
-usuarios_db = carregar_usuarios()
+usuarios_db = carregar_json(ARQ_USUARIOS)
+if not isinstance(usuarios_db, dict):
+    usuarios_db = {}
+
+# =========================
+# 📊 LOGS
+# =========================
+def salvar_log(email):
+    logs = carregar_json(ARQ_LOGS)
+    logs.append({"email": email})
+    salvar_json(ARQ_LOGS, logs)
+
+def salvar_pagamento(email):
+    pagamentos = carregar_json(ARQ_PAGAMENTOS)
+    pagamentos.append({"email": email})
+    salvar_json(ARQ_PAGAMENTOS, pagamentos)
+
+def salvar_usuarios():
+    salvar_json(ARQ_USUARIOS, usuarios_db)
 
 # =========================
 # IA
@@ -84,13 +103,12 @@ if "suspeitos" not in st.session_state:
     st.session_state.suspeitos = 0
 
 # =========================
-# 🧠 IA + DETECÇÃO
+# IA + DETECÇÃO
 # =========================
 def analisar_texto(texto):
     try:
         texto_lower = texto.lower()
 
-        # 🔥 DETECÇÃO LOCAL (NÃO DEPENDE DE IA)
         if any(p in texto_lower for p in ["senha","pix","urgente","código","clique","link"]):
             resultado = """🔴 RISCO ALTO
 ⚠️ Possível golpe detectado automaticamente.
@@ -99,13 +117,12 @@ def analisar_texto(texto):
             resposta = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "Analise golpes digitais e classifique risco."},
+                    {"role": "system", "content": "Analise golpes digitais"},
                     {"role": "user", "content": texto}
                 ]
             )
             resultado = resposta.choices[0].message.content
 
-        # SOC
         st.session_state.eventos += 1
 
         if "ALTO" in resultado:
@@ -117,23 +134,17 @@ def analisar_texto(texto):
         return resultado
 
     except:
-        return "⚠️ Sistema funcionando em modo básico (sem IA ativa)"
+        return "⚠️ Sistema funcionando sem IA"
 
 # =========================
-# 🌍 OSINT
+# OSINT
 # =========================
 def consultar_ip(ip):
     try:
         r = requests.get(f"http://ip-api.com/json/{ip}").json()
-        return f"""
-🌍 País: {r.get('country')}
-🏙️ Cidade: {r.get('city')}
-📡 ISP: {r.get('isp')}
-📍 Região: {r.get('regionName')}
-📌 Lat: {r.get('lat')} | Lon: {r.get('lon')}
-"""
+        return f"{r.get('country')} | {r.get('city')} | {r.get('isp')}"
     except:
-        return "Erro ao consultar IP"
+        return "Erro OSINT"
 
 # =========================
 # LOGIN / CADASTRO
@@ -144,7 +155,6 @@ if not st.session_state.logado:
 
     opcao = st.radio("Acesso", ["Entrar", "Criar conta", "Recuperar senha"])
 
-    # LOGIN
     if opcao == "Entrar":
         email = st.text_input("Email")
         senha = st.text_input("Senha", type="password")
@@ -153,34 +163,30 @@ if not st.session_state.logado:
             if email in usuarios_db and usuarios_db[email]["senha"] == hash_senha(senha):
                 st.session_state.logado = True
                 st.session_state.usuario = email
-                st.success("Acesso liberado")
+                salvar_log(email)
+                st.success("Login realizado")
                 st.rerun()
             else:
-                st.error("Credenciais inválidas")
+                st.error("Login inválido")
 
-    # CADASTRO
     elif opcao == "Criar conta":
         novo_email = st.text_input("Novo email")
         nova_senha = st.text_input("Nova senha", type="password")
 
         if st.button("Cadastrar"):
-            if novo_email in usuarios_db:
-                st.warning("Usuário já existe")
-            else:
-                usuarios_db[novo_email] = {
-                    "senha": hash_senha(nova_senha),
-                    "premium": False
-                }
-                salvar_usuarios(usuarios_db)
-                st.success("Conta criada com sucesso")
+            usuarios_db[novo_email] = {
+                "senha": hash_senha(nova_senha),
+                "premium": False
+            }
+            salvar_usuarios()
+            st.success("Conta criada")
 
-    # RECUPERAR
     elif opcao == "Recuperar senha":
-        email_rec = st.text_input("Email")
+        email = st.text_input("Email")
 
         if st.button("Recuperar"):
-            if email_rec in usuarios_db:
-                st.info("Senha protegida. Crie uma nova conta ou redefina manualmente.")
+            if email in usuarios_db:
+                st.info("Senha protegida (criptografada)")
             else:
                 st.error("Email não encontrado")
 
@@ -190,105 +196,76 @@ if not st.session_state.logado:
 # APP
 # =========================
 st.title("🛡️ Escudo Digital IA")
-st.caption("Proteção inteligente contra golpes digitais")
+st.caption("Proteção contra golpes digitais")
 
-st.markdown("### 🚨 Analise mensagens suspeitas em segundos")
-
-# =========================
 # PREMIUM
-# =========================
 st.subheader("💎 Premium")
 st.code("13996469617")
 
-st.success("Acesso avançado ativo")
-
-# =========================
 # ANALISE
-# =========================
-st.subheader("🔍 Central de Análise")
-texto = st.text_area("Cole uma mensagem suspeita")
+st.subheader("🔍 Análise")
+txt = st.text_area("Mensagem")
 
-if st.button("🚀 Analisar"):
-    if texto:
-        resultado = analisar_texto(texto)
+if st.button("Analisar"):
+    resultado = analisar_texto(txt)
 
-        if "ALTO" in resultado:
-            st.error(resultado)
-        elif "MÉDIO" in resultado:
-            st.warning(resultado)
-        else:
-            st.success(resultado)
+    if "ALTO" in resultado:
+        st.error(resultado)
+    else:
+        st.success(resultado)
 
-        st.progress(min(st.session_state.eventos / 10, 1.0))
-
-# =========================
 # PRINT
-# =========================
-st.subheader("📷 Analisar print")
-
-img = st.file_uploader("Envie imagem")
+st.subheader("📷 Print")
+img = st.file_uploader("Imagem")
 
 if img:
     texto_img = pytesseract.image_to_string(Image.open(img))
-    st.text_area("Texto detectado", texto_img)
+    st.text(texto_img)
 
-    if st.button("🔎 Analisar imagem"):
-        st.success(analisar_texto(texto_img))
-
-# =========================
 # OSINT
-# =========================
-st.subheader("🌍 OSINT - Inteligência de IP")
+st.subheader("🌍 OSINT")
+ip = st.text_input("IP")
 
-ip = st.text_input("Digite um IP")
+if st.button("Consultar"):
+    st.info(consultar_ip(ip))
 
-if st.button("🌐 Consultar OSINT"):
-    if ip:
-        st.info(consultar_ip(ip))
-
-# =========================
 # SOC
-# =========================
-st.subheader("📊 Painel SOC")
+st.subheader("📊 SOC")
+st.metric("Eventos", st.session_state.eventos)
+st.metric("Alertas", st.session_state.alertas)
+st.metric("Suspeitos", st.session_state.suspeitos)
 
-col1, col2, col3 = st.columns(3)
-
-col1.metric("Eventos", st.session_state.eventos)
-col2.metric("Suspeitos", st.session_state.suspeitos)
-col3.metric("Alertas", st.session_state.alertas)
-
-if st.session_state.alertas > 3:
-    st.error("🚨 Alto risco detectado")
-elif st.session_state.alertas > 0:
-    st.warning("⚠️ Atividade suspeita")
-else:
-    st.success("🟢 Ambiente seguro")
-
-# =========================
 # ADMIN
-# =========================
-st.subheader("🔧 Administração")
+st.subheader("🔧 Admin")
+user = st.session_state.usuario
 
-usuario = st.session_state.usuario
-
-if usuario in usuarios_db:
-    st.info(f"👤 {usuario}")
-    st.write(f"Premium: {'Ativo' if usuarios_db[usuario]['premium'] else 'Inativo'}")
+st.write(user)
+st.write("Premium:", usuarios_db[user]["premium"])
 
 if st.button("Ativar Premium"):
-    usuarios_db[usuario]["premium"] = True
-    salvar_usuarios(usuarios_db)
-    st.success("Premium ativado")
+    usuarios_db[user]["premium"] = True
+    salvar_usuarios()
+    salvar_pagamento(user)
 
 if st.button("Sair"):
     st.session_state.logado = False
     st.rerun()
 
 # =========================
+# HISTÓRICO
+# =========================
+st.subheader("📊 Histórico de Acessos")
+for l in carregar_json(ARQ_LOGS):
+    st.write("👤", l["email"])
+
+st.subheader("💰 Pagamentos")
+for p in carregar_json(ARQ_PAGAMENTOS):
+    st.write("💎", p["email"])
+
+# =========================
 # USUÁRIOS
 # =========================
 st.subheader("👥 Usuários")
-
 for u in usuarios_db:
     status = "🟢 Premium" if usuarios_db[u]["premium"] else "⚪ Free"
     st.write(f"{u} — {status}")
