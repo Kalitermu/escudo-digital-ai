@@ -49,11 +49,14 @@ if not st.session_state.logado:
         nova_senha = st.text_input("Nova senha", type="password")
 
         if st.button("Cadastrar"):
-            st.session_state.usuarios[novo_email] = {
-                "senha": nova_senha,
-                "premium": False
-            }
-            st.success("Conta criada com sucesso!")
+            if novo_email and nova_senha:
+                st.session_state.usuarios[novo_email] = {
+                    "senha": nova_senha,
+                    "premium": False
+                }
+                st.success("Conta criada com sucesso!")
+            else:
+                st.warning("Preencha todos os campos")
 
     # RECUPERAR SENHA
     if opcao == "Esqueci senha":
@@ -68,7 +71,7 @@ if not st.session_state.logado:
     st.stop()
 
 # =========================
-# 🛡️ APP PRINCIPAL
+# 🛡️ APP
 # =========================
 st.title("🛡️ Escudo Digital IA")
 st.caption("Proteção contra golpes digitais")
@@ -84,7 +87,7 @@ st.code("13996469617")
 st.link_button("📲 Enviar comprovante", "https://wa.me/5513996469617?text=paguei%20premium")
 
 # =========================
-# 🧠 IA DE ANÁLISE
+# 🧠 IA
 # =========================
 def analisar(msg):
     risco = 0
@@ -117,26 +120,29 @@ st.subheader("🔍 Central de Análise")
 texto = st.text_area("Cole mensagem suspeita")
 
 if st.button("🔎 Analisar agora"):
-    risco, palavras = analisar(texto)
+    if texto:
+        risco, palavras = analisar(texto)
 
-    st.session_state.eventos += 1
+        st.session_state.eventos += 1
 
-    if risco > 50:
-        st.session_state.suspeitos += 1
+        if risco > 50:
+            st.session_state.suspeitos += 1
 
-    if risco > 70:
-        st.session_state.alertas += 1
+        if risco > 70:
+            st.session_state.alertas += 1
 
-    st.progress(risco / 100)
+        st.progress(risco / 100)
 
-    if risco < 40:
-        st.success("🟢 Baixo risco")
-    elif risco < 70:
-        st.warning(f"🟡 Risco médio ({risco}%)")
+        if risco < 40:
+            st.success("🟢 Baixo risco")
+        elif risco < 70:
+            st.warning(f"🟡 Risco médio ({risco}%)")
+        else:
+            st.error(f"🔴 Alto risco ({risco}%)")
+
+        st.write("Detectado:", palavras)
     else:
-        st.error(f"🔴 Alto risco ({risco}%)")
-
-    st.write("Detectado:", palavras)
+        st.warning("Digite algo para analisar")
 
 # =========================
 # 📷 PRINT
@@ -157,8 +163,11 @@ st.subheader("📧 Analisar email")
 email_txt = st.text_area("Cole email")
 
 if st.button("Analisar email"):
-    st.session_state.eventos += 1
-    st.warning("⚠️ Email suspeito detectado")
+    if email_txt:
+        st.session_state.eventos += 1
+        st.warning("⚠️ Email suspeito detectado")
+    else:
+        st.warning("Cole um email")
 
 # =========================
 # 📱 WHATSAPP
@@ -168,8 +177,11 @@ st.subheader("📱 Golpe WhatsApp")
 zap = st.text_area("Cole conversa")
 
 if st.button("Analisar WhatsApp"):
-    st.session_state.eventos += 1
-    st.warning("⚠️ Possível golpe WhatsApp")
+    if zap:
+        st.session_state.eventos += 1
+        st.warning("⚠️ Possível golpe WhatsApp")
+    else:
+        st.warning("Cole a conversa")
 
 # =========================
 # 👴 IDOSO
@@ -179,13 +191,16 @@ st.subheader("👴 Golpe contra idoso")
 idoso = st.text_area("Mensagem INSS")
 
 if st.button("Analisar INSS"):
-    st.session_state.eventos += 1
+    if idoso:
+        st.session_state.eventos += 1
 
-    if "inss" in idoso.lower():
-        st.session_state.alertas += 1
-        st.error("⚠️ Golpe do INSS detectado")
+        if "inss" in idoso.lower():
+            st.session_state.alertas += 1
+            st.error("⚠️ Golpe do INSS detectado")
+        else:
+            st.success("Sem risco")
     else:
-        st.success("Sem risco")
+        st.warning("Digite a mensagem")
 
 # =========================
 # 📚 BIBLIOTECA
@@ -216,27 +231,31 @@ else:
     st.error("🔴 Ameaças detectadas")
 
 # =========================
-# 🔧 ADMIN (MELHORADO)
+# 🔧 ADMIN
 # =========================
 st.subheader("🔧 Admin")
 
 st.write("Usuário:", usuario)
 st.write("Premium:", "✅ Ativo" if premium else "❌ Não")
 
-# 👥 LISTA DE USUÁRIOS (NOVO)
+# 👥 LISTA
 st.write("### 👥 Usuários cadastrados")
 
 for email, dados in st.session_state.usuarios.items():
     st.write(f"📧 {email} | Premium: {'✅' if dados['premium'] else '❌'}")
 
 # BOTÕES
-if st.button("Ativar Premium"):
-    st.session_state.usuarios[usuario]["premium"] = True
-    st.success("Premium ativado")
+col1, col2 = st.columns(2)
 
-if st.button("Remover Premium"):
-    st.session_state.usuarios[usuario]["premium"] = False
-    st.warning("Premium removido")
+with col1:
+    if st.button("Ativar Premium"):
+        st.session_state.usuarios[usuario]["premium"] = True
+        st.success("Premium ativado")
+
+with col2:
+    if st.button("Remover Premium"):
+        st.session_state.usuarios[usuario]["premium"] = False
+        st.warning("Premium removido")
 
 # =========================
 # 🚪 SAIR
