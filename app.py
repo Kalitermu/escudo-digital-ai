@@ -6,9 +6,46 @@ import pandas as pd
 # =========================
 # CONFIG
 # =========================
+st.set_page_config(page_title="Escudo Digital IA", layout="wide")
+
 USERS_FILE = "usuarios.json"
 ADMIN_EMAIL = "joseluizariel@gmail.com"
 PIX_CHAVE = "13996469617"
+
+# =========================
+# 🎨 DESIGN PREMIUM (CLARO)
+# =========================
+st.markdown("""
+<style>
+.stApp {
+    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+}
+
+h1, h2, h3 {
+    color: #1e3a8a;
+}
+
+div[data-testid="stTextInput"] input,
+div[data-testid="stTextArea"] textarea {
+    background-color: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+}
+
+.stButton>button {
+    background: linear-gradient(90deg, #2563eb, #1d4ed8);
+    color: white;
+    border-radius: 12px;
+    font-weight: bold;
+    border: none;
+}
+
+section[data-testid="stSidebar"] {
+    background-color: #1e3a8a;
+    color: white;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # =========================
 # JSON
@@ -48,83 +85,66 @@ def is_admin():
     )
 
 # =========================
-# ESTILO AZUL
-# =========================
-st.markdown("""
-<style>
-.stApp {
-    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-    color: white;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# =========================
-# LOGIN CENTRAL
+# LOGIN BONITO
 # =========================
 if not st.session_state.logado:
+
     st.title("🛡️ Escudo Digital IA")
-    st.subheader("Proteção contra golpes digitais")
+    st.caption("Proteção inteligente contra golpes")
 
-    opcao = st.selectbox("Escolha", ["Entrar", "Criar conta"])
+    col1, col2, col3 = st.columns([1,2,1])
 
-    email = st.text_input("Email")
-    senha = st.text_input("Senha", type="password")
+    with col2:
+        opcao = st.selectbox("Acessar", ["Entrar", "Criar conta"])
 
-    if st.button("Continuar"):
+        email = st.text_input("Email")
+        senha = st.text_input("Senha", type="password")
 
-        if opcao == "Entrar":
-            if email in usuarios and usuarios[email]["senha"] == hash_senha(senha):
-                st.session_state.logado = True
-                st.session_state.email_usuario = email
-                st.success("Login realizado")
-                st.rerun()
+        if st.button("Continuar", use_container_width=True):
+
+            if opcao == "Entrar":
+                if email in usuarios and usuarios[email]["senha"] == hash_senha(senha):
+                    st.session_state.logado = True
+                    st.session_state.email_usuario = email
+                    st.rerun()
+                else:
+                    st.error("Login inválido")
+
             else:
-                st.error("Login inválido")
-
-        else:
-            if email not in usuarios:
                 usuarios[email] = {
                     "senha": hash_senha(senha),
                     "uso": 0,
-                    "premium": False,
-                    "premium_expira": ""
+                    "premium": False
                 }
                 salvar_json(USERS_FILE, usuarios)
-
-                st.session_state.logado = True
-                st.session_state.email_usuario = email
                 st.success("Conta criada")
-                st.rerun()
-            else:
-                st.warning("Conta já existe")
 
     st.stop()
 
 # =========================
-# USUÁRIO LOGADO
+# USUÁRIO
 # =========================
 email = st.session_state.email_usuario
 
 st.sidebar.success(f"👤 {email}")
+
+st.sidebar.info(f"📊 Usos: {usuarios[email]['uso']} / 7 grátis")
+
+st.sidebar.markdown("## 💎 Premium")
+st.sidebar.write("Acesso ilimitado por R$ 9,90")
+
+st.sidebar.code(PIX_CHAVE)
+
+st.sidebar.markdown(
+    f"[📲 Enviar comprovante](https://wa.me/55{PIX_CHAVE}?text=Olá,%20paguei%20o%20Escudo%20Digital%20Premium)"
+)
 
 if st.sidebar.button("Sair"):
     st.session_state.logado = False
     st.rerun()
 
 # =========================
-# PAGAMENTO PIX
-# =========================
-st.sidebar.markdown("## 💎 Premium")
-st.sidebar.write("Libere tudo por R$ 9,90")
-st.sidebar.code(PIX_CHAVE)
-
-st.sidebar.markdown(
-    f"[📲 Enviar comprovante](https://wa.me/55{PIX_CHAVE}?text=Olá,%20acabei%20de%20pagar%20o%20Escudo%20Digital%20Premium.)"
-)
-
-# =========================
-# LIMITE GRÁTIS
+# LIMITE
 # =========================
 def verificar_limite():
     if not usuarios[email]["premium"]:
@@ -137,131 +157,98 @@ def usar():
     salvar_json(USERS_FILE, usuarios)
 
 # =========================
-# FUNÇÃO DE ANÁLISE
+# SCORE VISUAL
+# =========================
+def mostrar_score(risco):
+    st.progress(min(risco/100,1.0))
+
+    if risco >= 70:
+        st.error(f"🚨 ALTO RISCO ({risco}%)")
+    elif risco >= 40:
+        st.warning(f"⚠️ RISCO MÉDIO ({risco}%)")
+    else:
+        st.success(f"✅ BAIXO RISCO ({risco}%)")
+
+# =========================
+# IA SIMPLES
 # =========================
 def analisar_texto(texto):
     texto = texto.lower()
     risco = 0
     tipo = []
 
-    if "pix" in texto:
-        risco += 30
-        tipo.append("Golpe Pix")
-
-    if "urgente" in texto or "agora" in texto:
-        risco += 20
-        tipo.append("Urgência")
-
-    if "senha" in texto or "login" in texto:
-        risco += 30
-        tipo.append("Phishing")
-
-    if "inss" in texto or "aposentadoria" in texto:
-        risco += 40
-        tipo.append("Golpe INSS")
-
-    if "empréstimo" in texto or "consignado" in texto:
-        risco += 30
-        tipo.append("Empréstimo falso")
+    if "pix" in texto: risco += 30; tipo.append("Pix")
+    if "urgente" in texto: risco += 20; tipo.append("Urgência")
+    if "senha" in texto: risco += 30; tipo.append("Phishing")
+    if "inss" in texto: risco += 40; tipo.append("INSS")
+    if "empréstimo" in texto: risco += 30; tipo.append("Empréstimo")
 
     return risco, tipo
 
 # =========================
-# SISTEMA
+# HOME
 # =========================
-st.title("🛡️ Escudo Digital IA")
+st.title("🛡️ Central de Análise")
 
-# 🔍 DOMÍNIO
-st.header("🔍 Scanner de domínio")
-url = st.text_input("Digite URL")
+# 📱 ANÁLISE GERAL
+entrada = st.text_area("Cole qualquer mensagem suspeita")
 
-if st.button("Analisar domínio"):
-    if url:
+if st.button("🔍 Analisar agora", use_container_width=True):
+    if entrada:
         verificar_limite()
         usar()
-        risco, tipo = analisar_texto(url)
-        st.write(f"Risco: {risco}%")
-        st.write(tipo)
+
+        risco, tipo = analisar_texto(entrada)
+
+        mostrar_score(risco)
+
+        st.write("🔎 Detectado:", tipo)
     else:
         st.warning("Digite algo")
 
-# 📧 EMAIL
-st.header("📧 Email suspeito")
-email_texto = st.text_area("Cole o email")
+# =========================
+# BIBLIOTECA
+# =========================
+st.header("📚 Tipos de golpes")
 
-if st.button("Analisar email"):
-    if email_texto:
-        verificar_limite()
-        usar()
-        risco, tipo = analisar_texto(email_texto)
-        st.write(f"Risco: {risco}%")
-        st.write(tipo)
-    else:
-        st.warning("Digite algo")
-
-# 📱 WHATSAPP
-st.header("📱 Golpe WhatsApp")
-zap = st.text_area("Cole conversa")
-
-if st.button("Analisar WhatsApp"):
-    if zap:
-        verificar_limite()
-        usar()
-        risco, tipo = analisar_texto(zap)
-        st.write(f"Risco: {risco}%")
-        st.write(tipo)
-    else:
-        st.warning("Digite algo")
-
-# 👴 IDOSO
-st.header("👴 Golpe contra idoso")
-idoso = st.text_area("Mensagem suspeita")
-
-if st.button("Analisar golpe idoso"):
-    if idoso:
-        verificar_limite()
-        usar()
-        risco, tipo = analisar_texto(idoso)
-        st.write(f"Risco: {risco}%")
-        st.write(tipo)
-    else:
-        st.warning("Digite algo")
-
-# 📚 BIBLIOTECA
-st.header("📚 Biblioteca de golpes")
-st.write("""
-• golpe_pix — pedido urgente  
-• emprestimo_falso — crédito fácil  
-• phishing — roubo de senha  
-• extorsao — ameaça  
-• golpe_whatsapp — troca de número  
-• golpe_idoso — INSS  
+st.markdown("""
+- 💸 Pix falso  
+- 🏦 Empréstimo falso  
+- 🔐 Phishing  
+- ⚠️ Extorsão  
+- 📱 WhatsApp clonado  
+- 👴 Golpe INSS  
 """)
 
 # =========================
 # ADMIN
 # =========================
 if is_admin():
-    st.header("🔧 Admin")
+    st.header("🔧 Painel Admin")
 
-    lista = []
-    for u, d in usuarios.items():
-        lista.append({
+    df = pd.DataFrame([
+        {
             "Email": u,
             "Uso": d["uso"],
             "Premium": d["premium"]
-        })
+        }
+        for u, d in usuarios.items()
+    ])
 
-    st.dataframe(pd.DataFrame(lista))
+    st.dataframe(df)
 
-    user_sel = st.selectbox("Usuário", list(usuarios.keys()))
+    user_sel = st.selectbox("Selecionar usuário", list(usuarios.keys()))
 
-    if st.button("Ativar Premium"):
-        usuarios[user_sel]["premium"] = True
-        salvar_json(USERS_FILE, usuarios)
-        st.success("Ativado")
+    col1, col2 = st.columns(2)
 
-    if st.button("Remover Premium"):
-        usuarios[user_sel]["premium"] = False
-        salvar_json(USERS_FILE, usuarios)
-        st.warning("Removido")
+    with col1:
+        if st.button("Ativar Premium"):
+            usuarios[user_sel]["premium"] = True
+            salvar_json(USERS_FILE, usuarios)
+            st.success("Ativado")
+
+    with col2:
+        if st.button("Remover Premium"):
+            usuarios[user_sel]["premium"] = False
+            salvar_json(USERS_FILE, usuarios)
+            st.warning("Removido")
