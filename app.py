@@ -3,157 +3,174 @@ import streamlit as st
 # CONFIG
 st.set_page_config(page_title="Escudo Digital IA", layout="centered")
 
-# 🎨 ESTILO LIMPO
-st.markdown("""
-<style>
-html, body {
-    background: linear-gradient(135deg, #eef2ff, #f8fafc);
-}
-.stButton button {
-    width: 100%;
-    height: 48px;
-    border-radius: 10px;
-    background: linear-gradient(90deg, #2563eb, #1d4ed8);
-    color: white;
-    border: none;
-}
-</style>
-""", unsafe_allow_html=True)
+# ===== BANCO SIMPLES =====
+if "usuarios" not in st.session_state:
+    st.session_state.usuarios = {
+        "joseluizariel@gmail.com": {
+            "senha": "123",
+            "premium": True
+        }
+    }
 
-# =========================
-# 🧠 SESSION LOGIN
-# =========================
 if "logado" not in st.session_state:
     st.session_state.logado = False
 
-# =========================
-# 🔐 LOGIN
-# =========================
+# ===== LOGIN / CADASTRO =====
 if not st.session_state.logado:
-    st.markdown("# 🔐 Login Escudo Digital")
+    st.title("🔐 Login Escudo Digital")
 
-    email = st.text_input("Email")
-    senha = st.text_input("Senha", type="password")
+    opcao = st.selectbox("Escolha", ["Login", "Criar conta", "Esqueci a senha"])
 
-    if st.button("Entrar"):
-        if email == "joseluizariel@gmail.com" and senha == "123":
-            st.session_state.logado = True
-            st.session_state.email = email
-            st.success("Login realizado")
-            st.rerun()
-        else:
-            st.error("Login inválido")
+    # LOGIN
+    if opcao == "Login":
+        email = st.text_input("Email")
+        senha = st.text_input("Senha", type="password")
+
+        if st.button("Entrar"):
+            if email in st.session_state.usuarios and st.session_state.usuarios[email]["senha"] == senha:
+                st.session_state.logado = True
+                st.session_state.email = email
+                st.rerun()
+            else:
+                st.error("Login inválido")
+
+    # CADASTRO
+    if opcao == "Criar conta":
+        novo_email = st.text_input("Novo email")
+        nova_senha = st.text_input("Nova senha", type="password")
+
+        if st.button("Cadastrar"):
+            st.session_state.usuarios[novo_email] = {
+                "senha": nova_senha,
+                "premium": False
+            }
+            st.success("Conta criada!")
+
+    # RECUPERAR SENHA
+    if opcao == "Esqueci a senha":
+        email_reset = st.text_input("Digite seu email")
+
+        if st.button("Recuperar"):
+            if email_reset in st.session_state.usuarios:
+                st.warning(f"Sua senha é: {st.session_state.usuarios[email_reset]['senha']}")
+            else:
+                st.error("Email não encontrado")
 
     st.stop()
 
-# =========================
-# 🛡️ APP (SÓ APARECE LOGADO)
-# =========================
-
-st.markdown("# 🛡️ Escudo Digital IA")
+# ===== APP =====
+st.title("🛡️ Escudo Digital IA")
 st.caption("Proteção contra golpes digitais")
 
-# 💎 PREMIUM
-st.markdown("## 💎 Premium")
+usuario = st.session_state.email
+premium = st.session_state.usuarios[usuario]["premium"]
+
+# ===== PREMIUM =====
+st.subheader("💎 Premium")
 st.code("13996469617")
-st.markdown("[📲 Enviar comprovante](https://wa.me/5513996469617?text=paguei%20premium)")
+st.link_button("📲 Enviar comprovante", "https://wa.me/5513996469617?text=paguei%20premium")
 
-# 🔍 DOMÍNIO
-st.markdown("## 🔍 Scanner de domínio")
-url = st.text_input("Digite URL suspeita")
+# ===== ANALISE =====
+st.subheader("🔍 Central de Análise")
 
-if st.button("Analisar domínio"):
-    if "http" in url:
-        st.warning("⚠️ Verifique segurança do site")
+texto = st.text_area("Cole mensagem suspeita")
+
+def analisar(msg):
+    risco = 0
+    palavras = []
+
+    if "urgente" in msg.lower():
+        risco += 30
+        palavras.append("Urgência")
+
+    if "pix" in msg.lower():
+        risco += 30
+        palavras.append("PIX")
+
+    if "inss" in msg.lower():
+        risco += 30
+        palavras.append("INSS")
+
+    return risco, palavras
+
+if st.button("🔎 Analisar agora"):
+    risco, palavras = analisar(texto)
+
+    if risco == 0:
+        st.success("🟢 Baixo risco")
+    elif risco < 60:
+        st.warning(f"🟡 Risco médio ({risco}%)")
     else:
-        st.error("🔴 URL suspeita")
+        st.error(f"🔴 Alto risco ({risco}%)")
 
-# 📷 PRINT
-st.markdown("## 📷 Analisar print de golpe")
+    st.write("Detectado:", palavras)
+
+# ===== IMAGEM =====
+st.subheader("📷 Analisar print de golpe")
 img = st.file_uploader("Envie imagem", type=["png","jpg","jpeg"])
 
 if img:
     st.image(img)
-    st.warning("⚠️ Possível golpe detectado")
 
-# 📧 EMAIL
-st.markdown("## 📧 Analisar email")
-email_text = st.text_area("Cole o email")
+# ===== EMAIL =====
+st.subheader("📧 Analisar email")
+email_txt = st.text_area("Cole email")
 
 if st.button("Analisar email"):
-    if "senha" in email_text.lower() or "urgente" in email_text.lower():
-        st.error("🔴 Phishing detectado")
-    else:
-        st.success("🟢 Sem risco alto")
+    st.info("Análise simulada feita")
 
-# 📱 WHATSAPP
-st.markdown("## 📱 Golpe WhatsApp")
+# ===== WHATSAPP =====
+st.subheader("📱 Golpe WhatsApp")
 zap = st.text_area("Cole conversa")
 
 if st.button("Analisar WhatsApp"):
-    risco = 0
-    detectado = []
+    st.info("Análise simulada")
 
-    if "urgente" in zap.lower():
-        risco += 30
-        detectado.append("Urgência")
-
-    if "pix" in zap.lower():
-        risco += 40
-        detectado.append("Pedido de dinheiro")
-
-    if "link" in zap.lower():
-        risco += 20
-        detectado.append("Link suspeito")
-
-    st.progress(risco / 100)
-
-    if risco >= 70:
-        st.error(f"🔴 ALTO RISCO ({risco}%)")
-    elif risco >= 40:
-        st.warning(f"🟡 RISCO MÉDIO ({risco}%)")
-    else:
-        st.success(f"🟢 BAIXO RISCO ({risco}%)")
-
-    st.write("🔎 Detectado:", detectado)
-
-# 👴 IDOSO
-st.markdown("## 👴 Golpe contra idoso")
-idoso = st.text_area("Mensagem suspeita INSS")
+# ===== IDOSO =====
+st.subheader("👴 Golpe contra idoso")
+idoso = st.text_area("Mensagem INSS")
 
 if st.button("Analisar INSS"):
-    if "inss" in idoso.lower() or "benefício" in idoso.lower():
-        st.error("⚠️ Golpe comum contra idosos")
+    if "inss" in idoso.lower():
+        st.error("⚠️ Possível golpe do INSS")
     else:
-        st.success("🟢 Sem padrão de golpe")
+        st.success("Sem risco")
 
-# 📚 BIBLIOTECA
-st.markdown("## 📚 Biblioteca de golpes")
+# ===== BIBLIOTECA =====
+st.subheader("📚 Biblioteca de golpes")
+
 st.markdown("""
-- 💸 golpe_pix  
-- 🏦 emprestimo_falso  
-- 🔐 phishing  
-- ⚠️ extorsao  
-- 📱 golpe_whatsapp  
-- 👴 golpe_idoso  
+- 💸 golpe_pix — pedido urgente de dinheiro  
+- 🏦 emprestimo_falso — crédito fácil  
+- 🔐 phishing — roubo de senha  
+- ⚠️ extorsao — ameaça  
+- 📱 golpe_whatsapp — troca de número  
+- 👴 golpe_idoso — INSS  
 """)
 
-# 📊 SOC
-st.markdown("## 📊 Painel SOC")
+# ===== SOC =====
+st.subheader("📊 Painel SOC")
 
-c1, c2, c3 = st.columns(3)
-c1.metric("Eventos", 0)
-c2.metric("Suspeitos", 0)
-c3.metric("Alertas", 0)
+st.metric("Eventos", 0)
+st.metric("Suspeitos", 0)
+st.metric("Alertas", 0)
 
 st.success("🟢 Ambiente seguro")
 
-# 🔧 ADMIN
-st.markdown("## 🔧 Admin")
-st.write("Usuário:", st.session_state.email)
-st.write("Premium: ✅ Ativo")
+# ===== ADMIN =====
+st.subheader("🔧 Admin")
+st.write("Usuário:", usuario)
+st.write("Premium:", "✅ Ativo" if premium else "❌ Não")
 
-# 🚪 SAIR
+if st.button("Ativar Premium"):
+    st.session_state.usuarios[usuario]["premium"] = True
+    st.success("Premium ativado")
+
+if st.button("Remover Premium"):
+    st.session_state.usuarios[usuario]["premium"] = False
+    st.warning("Premium removido")
+
+# ===== LOGOUT =====
 if st.button("Sair"):
     st.session_state.logado = False
     st.rerun()
