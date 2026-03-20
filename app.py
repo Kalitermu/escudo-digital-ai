@@ -1,9 +1,8 @@
 import streamlit as st
 
-# CONFIG
 st.set_page_config(page_title="Escudo Digital IA", layout="centered")
 
-# ===== BANCO SIMPLES =====
+# ===== BANCO =====
 if "usuarios" not in st.session_state:
     st.session_state.usuarios = {
         "joseluizariel@gmail.com": {
@@ -15,13 +14,18 @@ if "usuarios" not in st.session_state:
 if "logado" not in st.session_state:
     st.session_state.logado = False
 
-# ===== LOGIN / CADASTRO =====
+# ===== SOC =====
+if "eventos" not in st.session_state:
+    st.session_state.eventos = 0
+    st.session_state.suspeitos = 0
+    st.session_state.alertas = 0
+
+# ===== LOGIN =====
 if not st.session_state.logado:
     st.title("🔐 Login Escudo Digital")
 
     opcao = st.selectbox("Escolha", ["Login", "Criar conta", "Esqueci a senha"])
 
-    # LOGIN
     if opcao == "Login":
         email = st.text_input("Email")
         senha = st.text_input("Senha", type="password")
@@ -34,7 +38,6 @@ if not st.session_state.logado:
             else:
                 st.error("Login inválido")
 
-    # CADASTRO
     if opcao == "Criar conta":
         novo_email = st.text_input("Novo email")
         nova_senha = st.text_input("Nova senha", type="password")
@@ -46,13 +49,12 @@ if not st.session_state.logado:
             }
             st.success("Conta criada!")
 
-    # RECUPERAR SENHA
     if opcao == "Esqueci a senha":
         email_reset = st.text_input("Digite seu email")
 
         if st.button("Recuperar"):
             if email_reset in st.session_state.usuarios:
-                st.warning(f"Sua senha é: {st.session_state.usuarios[email_reset]['senha']}")
+                st.success("Link de recuperação enviado (simulação)")
             else:
                 st.error("Email não encontrado")
 
@@ -70,35 +72,50 @@ st.subheader("💎 Premium")
 st.code("13996469617")
 st.link_button("📲 Enviar comprovante", "https://wa.me/5513996469617?text=paguei%20premium")
 
-# ===== ANALISE =====
-st.subheader("🔍 Central de Análise")
-
-texto = st.text_area("Cole mensagem suspeita")
-
+# ===== IA DE ANÁLISE =====
 def analisar(msg):
     risco = 0
     palavras = []
 
-    if "urgente" in msg.lower():
-        risco += 30
-        palavras.append("Urgência")
+    golpes = {
+        "urgente": 30,
+        "pix": 30,
+        "inss": 40,
+        "taxa": 20,
+        "clique": 15,
+        "link": 20,
+        "senha": 40,
+        "bloqueado": 30,
+        "whatsapp": 20
+    }
 
-    if "pix" in msg.lower():
-        risco += 30
-        palavras.append("PIX")
+    for palavra, peso in golpes.items():
+        if palavra in msg.lower():
+            risco += peso
+            palavras.append(palavra)
 
-    if "inss" in msg.lower():
-        risco += 30
-        palavras.append("INSS")
+    return min(risco, 100), palavras
 
-    return risco, palavras
+# ===== ANALISE =====
+st.subheader("🔍 Central de Análise")
+texto = st.text_area("Cole mensagem suspeita")
 
 if st.button("🔎 Analisar agora"):
     risco, palavras = analisar(texto)
 
-    if risco == 0:
+    st.session_state.eventos += 1
+
+    if risco > 50:
+        st.session_state.suspeitos += 1
+
+    if risco > 70:
+        st.session_state.alertas += 1
+
+    st.progress(risco / 100)
+
+    if risco < 40:
         st.success("🟢 Baixo risco")
-    elif risco < 60:
+    elif risco < 70:
         st.warning(f"🟡 Risco médio ({risco}%)")
     else:
         st.error(f"🔴 Alto risco ({risco}%)")
@@ -111,28 +128,33 @@ img = st.file_uploader("Envie imagem", type=["png","jpg","jpeg"])
 
 if img:
     st.image(img)
+    st.warning("⚠️ Possível golpe detectado na imagem (simulação IA)")
 
 # ===== EMAIL =====
 st.subheader("📧 Analisar email")
 email_txt = st.text_area("Cole email")
 
 if st.button("Analisar email"):
-    st.info("Análise simulada feita")
+    st.session_state.eventos += 1
+    st.warning("⚠️ Email suspeito detectado (simulação)")
 
 # ===== WHATSAPP =====
 st.subheader("📱 Golpe WhatsApp")
 zap = st.text_area("Cole conversa")
 
 if st.button("Analisar WhatsApp"):
-    st.info("Análise simulada")
+    st.session_state.eventos += 1
+    st.warning("⚠️ Possível golpe WhatsApp")
 
 # ===== IDOSO =====
 st.subheader("👴 Golpe contra idoso")
 idoso = st.text_area("Mensagem INSS")
 
 if st.button("Analisar INSS"):
+    st.session_state.eventos += 1
     if "inss" in idoso.lower():
-        st.error("⚠️ Possível golpe do INSS")
+        st.session_state.alertas += 1
+        st.error("⚠️ Golpe do INSS detectado")
     else:
         st.success("Sem risco")
 
@@ -151,14 +173,18 @@ st.markdown("""
 # ===== SOC =====
 st.subheader("📊 Painel SOC")
 
-st.metric("Eventos", 0)
-st.metric("Suspeitos", 0)
-st.metric("Alertas", 0)
+st.metric("Eventos", st.session_state.eventos)
+st.metric("Suspeitos", st.session_state.suspeitos)
+st.metric("Alertas", st.session_state.alertas)
 
-st.success("🟢 Ambiente seguro")
+if st.session_state.alertas == 0:
+    st.success("🟢 Ambiente seguro")
+else:
+    st.error("🔴 Ameaças detectadas")
 
 # ===== ADMIN =====
 st.subheader("🔧 Admin")
+
 st.write("Usuário:", usuario)
 st.write("Premium:", "✅ Ativo" if premium else "❌ Não")
 
