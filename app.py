@@ -1,18 +1,13 @@
 import streamlit as st
 import hashlib
 import json
-from datetime import datetime, timedelta
+import pandas as pd
 
 # =========================
 # CONFIG
 # =========================
-st.set_page_config(page_title="Escudo Digital IA", layout="wide")
-
 USERS_FILE = "usuarios.json"
 ADMIN_EMAIL = "admin@escudo.com"
-LIMITE_GRATIS = 7
-
-WHATSAPP_LINK = "https://wa.me/5513996469617?text=Olá,%20acabei%20de%20pagar%20o%20Escudo%20Digital%20Premium.%20Segue%20o%20comprovante."
 
 # =========================
 # JSON
@@ -52,141 +47,142 @@ def is_admin():
     )
 
 # =========================
-# PREMIUM
+# LOGIN CENTRAL
 # =========================
-def premium_ativo():
-    if not st.session_state.logado:
-        return False
+if not st.session_state.logado:
 
-    user = usuarios.get(st.session_state.email_usuario)
+    st.title("🛡️ Escudo Digital IA")
+    st.caption("Proteção contra golpes digitais")
 
-    if user.get("premium"):
-        exp = user.get("premium_expira")
-        if exp:
-            return datetime.now() <= datetime.strptime(exp, "%Y-%m-%d")
-        return True
+    col1, col2, col3 = st.columns([1,2,1])
 
-    return False
+    with col2:
+        opcao = st.selectbox(
+            "Escolha",
+            ["Entrar", "Criar conta", "Recuperar senha"]
+        )
 
-def uso_restante():
-    user = usuarios.get(st.session_state.email_usuario)
-    return max(0, LIMITE_GRATIS - user.get("uso", 0))
+        if opcao == "Entrar":
+            email = st.text_input("Email")
+            senha = st.text_input("Senha", type="password")
+
+            if st.button("Entrar", use_container_width=True):
+                if not email or not senha:
+                    st.warning("Preencha tudo")
+                elif email in usuarios:
+                    if usuarios[email]["senha"] == hash_senha(senha):
+                        st.session_state.logado = True
+                        st.session_state.email_usuario = email
+                        st.rerun()
+                    else:
+                        st.error("Senha incorreta")
+                else:
+                    st.error("Conta não encontrada")
+
+        elif opcao == "Criar conta":
+            email = st.text_input("Novo email")
+            senha = st.text_input("Nova senha", type="password")
+
+            if st.button("Criar conta", use_container_width=True):
+                if email in usuarios:
+                    st.warning("Conta já existe")
+                else:
+                    usuarios[email] = {
+                        "senha": hash_senha(senha),
+                        "uso": 0,
+                        "premium": False,
+                        "premium_expira": ""
+                    }
+                    salvar_json(USERS_FILE, usuarios)
+                    st.success("Conta criada!")
+
+        elif opcao == "Recuperar senha":
+            email = st.text_input("Email")
+            senha = st.text_input("Nova senha", type="password")
+
+            if st.button("Resetar", use_container_width=True):
+                if email in usuarios:
+                    usuarios[email]["senha"] = hash_senha(senha)
+                    salvar_json(USERS_FILE, usuarios)
+                    st.success("Senha atualizada")
+                else:
+                    st.error("Email não encontrado")
+
+    st.stop()
 
 # =========================
 # SIDEBAR
 # =========================
-st.sidebar.title("👤 Conta")
+st.sidebar.success(f"👤 {st.session_state.email_usuario}")
 
-opcao = st.sidebar.selectbox(
-    "Escolha",
-    ["Entrar", "Criar conta", "Recuperar senha"]
+if st.sidebar.button("Sair"):
+    st.session_state.logado = False
+    st.session_state.email_usuario = ""
+    st.rerun()
+
+# =========================
+# WHATSAPP PAGAMENTO
+# =========================
+st.sidebar.markdown(
+    "[📲 Enviar comprovante](https://wa.me/5513996469617?text=Olá,%20acabei%20de%20pagar%20o%20Escudo%20Digital%20Premium.%20Segue%20o%20comprovante.)"
 )
 
-# LOGIN
-if opcao == "Entrar":
-    email = st.sidebar.text_input("Email")
-    senha = st.sidebar.text_input("Senha", type="password")
+# =========================
+# HOME (SISTEMA)
+# =========================
 
-    if st.sidebar.button("Entrar"):
-        if email in usuarios:
-            if usuarios[email]["senha"] == hash_senha(senha):
-                st.session_state.logado = True
-                st.session_state.email_usuario = email
-                st.rerun()
-            else:
-                st.sidebar.error("Senha incorreta")
-        else:
-            st.sidebar.error("Conta não encontrada")
+st.title("🛡️ Escudo Digital IA")
 
-# CRIAR
-elif opcao == "Criar conta":
-    email = st.sidebar.text_input("Novo email")
-    senha = st.sidebar.text_input("Nova senha", type="password")
+# 🔎 SCANNER DOMÍNIO
+st.header("🔍 Scanner de domínio")
+url = st.text_input("Digite URL suspeita")
+if st.button("Analisar domínio"):
+    st.success("Domínio analisado (simulação)")
 
-    if st.sidebar.button("Criar"):
-        if email == ADMIN_EMAIL:
-            st.sidebar.error("Email reservado")
-        else:
-            usuarios[email] = {
-                "senha": hash_senha(senha),
-                "uso": 0,
-                "premium": False
-            }
-            salvar_json(USERS_FILE, usuarios)
-            st.sidebar.success("Conta criada!")
+# 📷 PRINT
+st.header("📷 Analisar print de golpe")
+file = st.file_uploader("Envie print")
+if file:
+    st.success("Imagem analisada (simulação)")
 
-# RECUPERAR
-elif opcao == "Recuperar senha":
-    email = st.sidebar.text_input("Email")
-    senha = st.sidebar.text_input("Nova senha", type="password")
+# 📧 EMAIL
+st.header("📧 Analisar email suspeito")
+email_text = st.text_area("Cole o email")
+if st.button("Analisar email"):
+    st.success("Email analisado (simulação)")
 
-    if st.sidebar.button("Resetar"):
-        if email in usuarios:
-            usuarios[email]["senha"] = hash_senha(senha)
-            salvar_json(USERS_FILE, usuarios)
-            st.sidebar.success("Senha atualizada")
+# 🌍 IP
+st.header("🌍 Análise OSINT de IP")
+ip = st.text_input("Digite IP ou domínio")
+if st.button("Analisar IP"):
+    st.success("IP analisado (simulação)")
 
-# STATUS
-if st.session_state.logado:
-    st.sidebar.success(f"👤 {st.session_state.email_usuario}")
+# 🚨 PHISHING
+st.header("🚨 Detector de Phishing")
+msg = st.text_area("Cole mensagem suspeita")
+if st.button("Analisar mensagem"):
+    st.success("Mensagem analisada (simulação)")
 
-    if premium_ativo():
-        st.sidebar.success("💎 Premium ativo")
-    else:
-        st.sidebar.info(f"Restam {uso_restante()} análises grátis")
+# 📱 WHATSAPP
+st.header("📱 Detector de golpes de WhatsApp")
+zap = st.text_area("Cole conversa")
+if st.button("Analisar WhatsApp"):
+    st.success("Conversa analisada (simulação)")
 
-        # BOTÃO WHATSAPP
-        st.sidebar.info("💳 Após pagamento, envie o comprovante:")
-        st.sidebar.markdown(f"[📲 Enviar comprovante]({WHATSAPP_LINK})")
-
-    if st.sidebar.button("Sair"):
-        st.session_state.logado = False
-        st.session_state.email_usuario = ""
-        st.rerun()
+# 📚 BIBLIOTECA
+st.header("📚 Biblioteca de golpes")
+st.write("""
+- golpe_pix — pedido urgente de dinheiro  
+- emprestimo_falso — crédito fácil falso  
+- phishing_banco — login falso  
+- extorsao — ameaça  
+- golpe_whatsapp — troca de número  
+""")
 
 # =========================
 # ADMIN
 # =========================
 if is_admin():
-    st.sidebar.markdown("## 🔧 Admin")
+    st.header("🔧 Admin")
 
-    pagina = st.sidebar.selectbox("Painel", ["Usuários", "Premium"])
-
-    if pagina == "Usuários":
-        st.write("### Usuários")
-        st.write(usuarios)
-
-    if pagina == "Premium":
-        email = st.selectbox("Usuário", list(usuarios.keys()))
-
-        if st.button("Ativar 30 dias"):
-            usuarios[email]["premium"] = True
-            usuarios[email]["premium_expira"] = (
-                datetime.now() + timedelta(days=30)
-            ).strftime("%Y-%m-%d")
-
-            salvar_json(USERS_FILE, usuarios)
-            st.success("Premium ativado")
-
-# =========================
-# APP
-# =========================
-st.title("🛡️ Escudo Digital IA")
-
-if not st.session_state.logado:
-    st.warning("Faça login para usar o sistema")
-
-    st.markdown("### 💎 Plano Premium")
-    st.write("Apenas R$ 9,90/mês")
-    st.code("PIX AQUI")
-
-else:
-    if not premium_ativo() and uso_restante() <= 0:
-        st.error("🚫 Limite atingido")
-        st.stop()
-
-    if st.button("🔎 Fazer análise"):
-        usuarios[st.session_state.email_usuario]["uso"] += 1
-        salvar_json(USERS_FILE, usuarios)
-
-        st.success("Análise feita!")
+    st.write(usuarios)
