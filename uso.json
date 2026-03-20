@@ -1,1 +1,7 @@
-{"inicio": "2026-03-01T23:56:30.132211", "testes": 1, "ameacas": 1}
+{
+  "admin@escudo.com": {
+    "senha": "SENHA_HASH_AQUI",
+    "uso": 0,
+    "premium": true
+  }
+}
